@@ -172,6 +172,44 @@ services.AddOpenMediatR(cfg =>
 
 Behaviors are not auto-scanned. They must be open generic types implementing `IPipelineBehavior<,>`.
 
+## Pre / Post Processors
+
+For logic that must run before or after a request handler without writing a full pipeline behavior, implement `IRequestPreProcessor<TRequest>` or `IRequestPostProcessor<TRequest, TResponse>`:
+
+```csharp
+public sealed class ValidateUser : IRequestPreProcessor<GetUser>
+{
+    public Task Process(GetUser request, CancellationToken cancellationToken)
+    {
+        if (request.Id <= 0) throw new ArgumentException("Invalid user id.");
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class AuditUserAccess : IRequestPostProcessor<GetUser, User>
+{
+    public Task Process(GetUser request, User response, CancellationToken cancellationToken)
+    {
+        // record the access
+        return Task.CompletedTask;
+    }
+}
+```
+
+Multiple processors per request type are supported and execute in registration order. Pre-processors run before the handler. Post-processors run after the handler returns successfully — they are skipped if the handler or any preceding step throws. User pipeline behaviors registered via `AddOpenBehavior` wrap the processors (outermost), so behavior `before` logic runs before pre-processors and behavior `after` logic runs after post-processors.
+
+Auto-registration is **opt-in** (mirroring MediatR). Set the flag to scan for processor implementations and wire the wrapper behaviors automatically:
+
+```csharp
+services.AddOpenMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssemblyContaining<MyRequestHandler>();
+    cfg.AutoRegisterRequestProcessors = true;
+});
+```
+
+Without the flag, register processors and the wrapper behaviors yourself if you want to use them.
+
 ## Notification Sinks
 
 Notifications are dispatched through notification sinks. A sink determines how notifications reach their handlers.
@@ -246,8 +284,6 @@ services.AddOpenMediatR(cfg =>
 
 Features not yet implemented compared to [MediatR](https://github.com/jbogard/MediatR):
 
-- [ ] `IRequestPreProcessor<TRequest>` — automatic pre-processing before handler execution
-- [ ] `IRequestPostProcessor<TRequest, TResponse>` — automatic post-processing after handler execution
 - [ ] `IRequestExceptionHandler<TRequest, TResponse, TException>` — structured exception handling with recovery
 - [ ] `IRequestExceptionAction<TRequest, TException>` — side-effects on exceptions (logging, metrics) without handling them
 

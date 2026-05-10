@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OpenMediatR.NotificationPublishers;
 using OpenMediatR.NotificationSinks;
+using OpenMediatR.RequestProcessors;
 
 namespace OpenMediatR.Tests;
 
@@ -185,6 +186,95 @@ public sealed class DependencyInjectionTests
         var services = CreateServices();
 
         services.Should().NotContain(x => x.ServiceType == typeof(IDisposable));
+    }
+
+    [Fact]
+    public void AddOpenMediatR_ByDefault_DoesNotAutoRegisterRequestProcessors()
+    {
+        var services = CreateServices();
+
+        services.Should().NotContain(x =>
+            x.ServiceType == typeof(IRequestPreProcessor<TestRequest>));
+        services.Should().NotContain(x =>
+            x.ServiceType == typeof(IRequestPostProcessor<TestRequest, string>));
+        services.Should().NotContain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestPreProcessorBehavior<,>));
+        services.Should().NotContain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestPostProcessorBehavior<,>));
+    }
+
+    [Fact]
+    public void AddOpenMediatR_WhenAutoRegisterEnabled_RegistersPreAndPostProcessors()
+    {
+        var services = CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AutoRegisterRequestProcessors = true;
+        });
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestPreProcessor<TestRequest>) &&
+            x.ImplementationType == typeof(TestPreProcessor1));
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestPostProcessor<TestRequest, string>) &&
+            x.ImplementationType == typeof(TestPostProcessor));
+    }
+
+    [Fact]
+    public void AddOpenMediatR_WhenAutoRegisterEnabled_AutoRegistersWrapperBehaviors()
+    {
+        var services = CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AutoRegisterRequestProcessors = true;
+        });
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestPreProcessorBehavior<,>));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestPostProcessorBehavior<,>));
+    }
+
+    [Fact]
+    public void AddOpenMediatR_CalledTwice_ShouldNotDuplicateScannedHandlersAndProcessors()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+
+        Action<OpenMediatRConfiguration> configure = cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AutoRegisterRequestProcessors = true;
+        };
+
+        services.AddOpenMediatR(configure);
+        services.AddOpenMediatR(configure);
+
+        services.Where(x =>
+            x.ServiceType == typeof(INotificationHandler<TestNotification>) &&
+            x.ImplementationType == typeof(TestHandler))
+            .Should().HaveCount(1);
+
+        services.Where(x =>
+            x.ServiceType == typeof(IRequestPreProcessor<TestRequest>) &&
+            x.ImplementationType == typeof(TestPreProcessor1))
+            .Should().HaveCount(1);
+
+        services.Where(x =>
+            x.ServiceType == typeof(IRequestPostProcessor<TestRequest, string>) &&
+            x.ImplementationType == typeof(TestPostProcessor))
+            .Should().HaveCount(1);
+
+        services.Where(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestPreProcessorBehavior<,>))
+            .Should().HaveCount(1);
     }
 
     [Fact]

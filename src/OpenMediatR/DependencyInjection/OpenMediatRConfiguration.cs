@@ -11,9 +11,40 @@ public sealed class OpenMediatRConfiguration
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Transient;
 
     /// <summary>
+    /// When <c>true</c>, the assembly scan registers <see cref="IRequestPreProcessor{TRequest}"/> and
+    /// <see cref="IRequestPostProcessor{TRequest, TResponse}"/> implementations and wires the matching
+    /// pipeline-behavior wrappers automatically. Default is <c>false</c> — register processors and the
+    /// wrapper behaviors explicitly to opt in. Mirrors MediatR's behaviour.
+    /// </summary>
+    public bool AutoRegisterRequestProcessors { get; set; } = false;
+
+    /// <summary>
     /// The notification publisher type that determines how notification handlers are executed.
-    /// Defaults to <see cref="NotificationPublishers.ForeachAwaitPublisher"/> (sequential).
-    /// Use <see cref="NotificationPublishers.TaskWhenAllPublisher"/> for parallel execution.
+    /// Available built-in strategies:
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// <see cref="NotificationPublishers.ForeachAwaitPublisher"/> (default) — runs handlers sequentially,
+    /// awaiting each one. Stops at the first exception (fail-fast); remaining handlers do not run.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// <see cref="NotificationPublishers.TaskWhenAllPublisher"/> — runs all handlers in parallel via
+    /// <see cref="System.Threading.Tasks.Task.WhenAll(System.Threading.Tasks.Task[])"/>. Failures surface
+    /// as the first faulted task's exception; <see cref="AggregateException.InnerExceptions"/> on the
+    /// returned task contain every failure.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// <see cref="NotificationPublishers.ForeachAwaitContinueOnExceptionPublisher"/> — runs handlers
+    /// sequentially like the default, but does not stop on failure: every handler executes, and any
+    /// captured exceptions are thrown together as a single <see cref="AggregateException"/> at the end.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// Custom strategies can be supplied by implementing <see cref="INotificationPublisher"/>.
     /// </summary>
     public Type NotificationPublisherType { get; set; } = typeof(NotificationPublishers.ForeachAwaitPublisher);
 

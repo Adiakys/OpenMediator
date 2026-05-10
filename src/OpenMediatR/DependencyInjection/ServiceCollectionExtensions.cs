@@ -50,6 +50,8 @@ public static class ServiceCollectionExtensions
 
                 if (def == typeof(IRequestHandler<,>))
                     services.TryAddTransient(iface, type);
+                else if (def == typeof(IStreamRequestHandler<,>))
+                    services.TryAddTransient(iface, type);
                 else if (def == typeof(INotificationHandler<>))
                     services.AddTransient(iface, type);
             }

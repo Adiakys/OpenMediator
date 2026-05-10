@@ -88,4 +88,37 @@ public sealed class IntegrationTests
         var act = () => mediator.Publish(new TestNotification());
         await act.Should().NotThrowAsync();
     }
+
+    [Fact]
+    public async Task CreateStream_WithRealDI_ResolvesHandlerAndYieldsValues()
+    {
+        using var provider = BuildProvider(cfg =>
+            cfg.RegisterServicesFromAssemblyContaining<IntegrationTests>());
+
+        var sender = provider.GetRequiredService<ISender>();
+
+        var values = new List<int>();
+        await foreach (var value in sender.CreateStream(new TestStreamRequest(4)))
+            values.Add(value);
+
+        values.Should().Equal(0, 1, 2, 3);
+    }
+
+    [Fact]
+    public async Task Mediator_WithRealDI_DelegatesCreateStream()
+    {
+        using var provider = BuildProvider(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<IntegrationTests>();
+            cfg.AddOpenStreamBehavior(typeof(TestStreamPipelineBehavior<,>));
+        });
+
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        var values = new List<int>();
+        await foreach (var value in mediator.CreateStream(new TestStreamRequest(2)))
+            values.Add(value);
+
+        values.Should().Equal(0, 1);
+    }
 }

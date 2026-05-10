@@ -70,6 +70,40 @@ public sealed class DeleteUserHandler : IRequestHandler<DeleteUser>
 await sender.Send(new DeleteUser(id));
 ```
 
+## Stream Requests
+
+For handlers that produce a sequence of results over time (e.g. LLM token streams, paged queries, server-sent events), use `IStreamRequest<TResponse>`:
+
+```csharp
+public sealed record StreamLogs(string Source) : IStreamRequest<string>;
+
+public sealed class StreamLogsHandler : IStreamRequestHandler<StreamLogs, string>
+{
+    public async IAsyncEnumerable<string> Handle(
+        StreamLogs request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var line in ReadLines(request.Source, cancellationToken))
+            yield return line;
+    }
+}
+```
+
+Dispatch via `ISender` (or `IMediator`):
+
+```csharp
+public class LogsController(ISender sender)
+{
+    public async IAsyncEnumerable<string> Tail(string source, [EnumeratorCancellation] CancellationToken ct)
+    {
+        await foreach (var line in sender.CreateStream(new StreamLogs(source), ct))
+            yield return line;
+    }
+}
+```
+
+Stream pipeline behaviors use `IStreamPipelineBehavior<TRequest, TResponse>` and are registered with `cfg.AddOpenStreamBehavior(typeof(MyStreamBehavior<,>))`. They are independent from regular `IPipelineBehavior` — request and stream pipelines do not share behaviors.
+
 ## Notifications
 
 Define a notification and one or more handlers:
@@ -212,7 +246,6 @@ services.AddOpenMediatR(cfg =>
 
 Features not yet implemented compared to [MediatR](https://github.com/jbogard/MediatR):
 
-- [ ] `IStreamRequest<TResponse>` / `IStreamRequestHandler<TRequest, TResponse>` — streaming responses via `IAsyncEnumerable<T>`
 - [ ] `IRequestPreProcessor<TRequest>` — automatic pre-processing before handler execution
 - [ ] `IRequestPostProcessor<TRequest, TResponse>` — automatic post-processing after handler execution
 - [ ] `IRequestExceptionHandler<TRequest, TResponse, TException>` — structured exception handling with recovery

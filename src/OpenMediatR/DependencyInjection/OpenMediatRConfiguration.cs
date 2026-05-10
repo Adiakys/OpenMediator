@@ -50,4 +50,23 @@ public sealed class OpenMediatRConfiguration
 
         return this;
     }
+
+    public OpenMediatRConfiguration AddOpenStreamBehavior(Type openBehaviorType, ServiceLifetime? lifetime = null)
+    {
+        if (!openBehaviorType.IsGenericTypeDefinition)
+            throw new ArgumentException(
+                $"{openBehaviorType.Name} must be an open generic type.", nameof(openBehaviorType));
+
+        var implementsPipeline = openBehaviorType.GetInterfaces()
+            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStreamPipelineBehavior<,>));
+
+        if (!implementsPipeline)
+            throw new ArgumentException(
+                $"{openBehaviorType.Name} must implement {typeof(IStreamPipelineBehavior<,>).Name}.", nameof(openBehaviorType));
+
+        BehaviorsToRegister.Add(new ServiceDescriptor(
+            typeof(IStreamPipelineBehavior<,>), openBehaviorType, lifetime ?? Lifetime));
+
+        return this;
+    }
 }

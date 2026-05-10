@@ -74,6 +74,54 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
+    public void AddOpenMediatR_ShouldRegisterStreamRequestHandlersFromAssembly()
+    {
+        var services = CreateServices();
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IStreamRequestHandler<TestStreamRequest, int>) &&
+            x.ImplementationType == typeof(TestStreamHandler));
+    }
+
+    [Fact]
+    public void AddOpenStreamBehavior_RegistersStreamPipelineBehavior()
+    {
+        var services = CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddOpenStreamBehavior(typeof(TestStreamPipelineBehavior<,>));
+        });
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IStreamPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(TestStreamPipelineBehavior<,>));
+    }
+
+    [Fact]
+    public void AddOpenStreamBehavior_WithNonGenericType_ShouldThrow()
+    {
+        var act = () => CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddOpenStreamBehavior(typeof(string));
+        });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void AddOpenStreamBehavior_WithTypeThatDoesNotImplementStreamPipelineBehavior_ShouldThrow()
+    {
+        var act = () => CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddOpenStreamBehavior(typeof(List<>));
+        });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void AddOpenMediatR_WithCustomNotificationPublisher_ShouldRegisterIt()
     {
         var services = CreateServices(cfg =>

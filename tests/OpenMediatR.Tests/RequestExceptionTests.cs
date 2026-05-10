@@ -154,6 +154,54 @@ public sealed class RequestExceptionTests
     }
 
     [Fact]
+    public async Task ExceptionAction_WithApplyForAllExceptionsStrategy_RunsEvenWhenHandlerRecovers()
+    {
+        // ApplyForAllExceptions reverses the wrapper order so the action sees the exception first,
+        // before the handler gets a chance to recover.
+        var trace = new List<string>();
+        var recovery = new TestExceptionRecoveryResponse("recovered");
+
+        using var provider = BuildProvider(
+            trace: trace,
+            recovery: recovery,
+            handlerOverride: ThrowingHandler(new InvalidOperationException("boom")),
+            configure: cfg =>
+            {
+                cfg.RegisterServicesFromAssemblyContaining<RequestExceptionTests>();
+                cfg.RequestExceptionActionProcessorStrategy =
+                    RequestExceptionActionProcessorStrategy.ApplyForAllExceptions;
+            });
+
+        var sender = provider.GetRequiredService<ISender>();
+
+        var result = await sender.Send(new TestRequest());
+
+        result.Should().Be("recovered");
+        trace.Should().Contain($"{nameof(TestExceptionAction)}:InvalidOperationException");
+        trace.Should().Contain($"{nameof(TestExceptionHandler)}:boom");
+    }
+
+    [Fact]
+    public async Task ExceptionAction_WithDefaultStrategy_DoesNotRunWhenHandlerRecovers()
+    {
+        // Sanity check: the default ApplyForUnhandledExceptions strategy preserves earlier behavior.
+        var trace = new List<string>();
+        var recovery = new TestExceptionRecoveryResponse("recovered");
+
+        using var provider = BuildProvider(
+            trace: trace,
+            recovery: recovery,
+            handlerOverride: ThrowingHandler(new InvalidOperationException("boom")));
+
+        var sender = provider.GetRequiredService<ISender>();
+
+        await sender.Send(new TestRequest());
+
+        trace.Should().Contain($"{nameof(TestExceptionHandler)}:boom");
+        trace.Should().NotContain(s => s.StartsWith(nameof(TestExceptionAction)));
+    }
+
+    [Fact]
     public async Task ExplicitRegistration_WorksWithoutAssemblyScan()
     {
         var trace = new List<string>();

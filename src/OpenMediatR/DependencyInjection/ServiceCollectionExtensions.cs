@@ -26,6 +26,9 @@ public static class ServiceCollectionExtensions
         foreach (var descriptor in config.BehaviorsToRegister)
             services.TryAddEnumerable(descriptor);
 
+        foreach (var descriptor in config.StreamBehaviorsToRegister)
+            services.TryAddEnumerable(descriptor);
+
         // Exception handler/action wrappers are registered AFTER user behaviors so they become outermost
         // and can catch exceptions thrown anywhere in the pipeline. Action wrapper is registered last,
         // making it the outermost — it runs through the handler wrapper first (which may recover) and
@@ -36,7 +39,13 @@ public static class ServiceCollectionExtensions
         services.TryAdd(new ServiceDescriptor(typeof(ISender), typeof(OpenMediatRSender), lifetime));
         services.TryAdd(new ServiceDescriptor(typeof(IPublisher), typeof(OpenMediatRPublisher), lifetime));
         services.TryAdd(new ServiceDescriptor(typeof(IMediator), typeof(Mediator), lifetime));
-        services.TryAdd(new ServiceDescriptor(typeof(INotificationPublisher), config.NotificationPublisherType, lifetime));
+
+        // Instance overrides Type if both are set; otherwise fall back to the configured Type.
+        if (config.NotificationPublisher is not null)
+            services.TryAddSingleton(config.NotificationPublisher);
+        else
+            services.TryAdd(new ServiceDescriptor(typeof(INotificationPublisher), config.NotificationPublisherType, lifetime));
+
         services.TryAddEnumerable(ServiceDescriptor.Describe(
             typeof(INotificationSink), typeof(InMemoryNotificationSink), lifetime));
 
@@ -140,16 +149,31 @@ public static class ServiceCollectionExtensions
         var hasHandler = hasHandlerFromScan || config.RequestExceptionHandlersToRegister.Count > 0;
         var hasAction = hasActionFromScan || config.RequestExceptionActionsToRegister.Count > 0;
 
-        // Handler wrapper registered first → inner. Action wrapper registered after → outermost.
-        // Recovery via SetHandled returns a response from the handler wrapper, suppressing the
-        // exception before it reaches the action wrapper (so actions don't fire on handled errors).
-        if (hasHandler)
-            services.TryAddEnumerable(ServiceDescriptor.Describe(
-                typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
+        // Wrapper order is determined by RequestExceptionActionProcessorStrategy:
+        //  - ApplyForUnhandledExceptions (default): handler wrapper inner, action wrapper outer.
+        //    Recovery via SetHandled suppresses the exception before it reaches the action wrapper.
+        //  - ApplyForAllExceptions: action wrapper inner, handler wrapper outer.
+        //    Action always sees the exception first; handler may then recover.
+        if (config.RequestExceptionActionProcessorStrategy == RequestExceptionActionProcessorStrategy.ApplyForAllExceptions)
+        {
+            if (hasAction)
+                services.TryAddEnumerable(ServiceDescriptor.Describe(
+                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
 
-        if (hasAction)
-            services.TryAddEnumerable(ServiceDescriptor.Describe(
-                typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
+            if (hasHandler)
+                services.TryAddEnumerable(ServiceDescriptor.Describe(
+                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
+        }
+        else
+        {
+            if (hasHandler)
+                services.TryAddEnumerable(ServiceDescriptor.Describe(
+                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
+
+            if (hasAction)
+                services.TryAddEnumerable(ServiceDescriptor.Describe(
+                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
+        }
     }
 
     private static (bool HasHandler, bool HasAction) ScanRequestExceptionHandlers(

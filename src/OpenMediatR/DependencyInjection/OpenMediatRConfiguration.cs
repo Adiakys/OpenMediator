@@ -3,16 +3,37 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace OpenMediatR;
 
-public sealed class OpenMediatRConfiguration
+/// <summary>
+/// Fluent configuration consumed by <see cref="ServiceCollectionExtensions.AddOpenMediatR"/>.
+/// Splits into partial files by concern: behaviors (this + Behaviors), processors (Processors).
+/// </summary>
+public sealed partial class OpenMediatRConfiguration
 {
     internal List<Assembly> AssembliesToRegister { get; } = [];
     internal List<ServiceDescriptor> BehaviorsToRegister { get; } = [];
+    internal List<ServiceDescriptor> StreamBehaviorsToRegister { get; } = [];
     internal List<ServiceDescriptor> RequestPreProcessorsToRegister { get; } = [];
     internal List<ServiceDescriptor> RequestPostProcessorsToRegister { get; } = [];
     internal List<ServiceDescriptor> RequestExceptionHandlersToRegister { get; } = [];
     internal List<ServiceDescriptor> RequestExceptionActionsToRegister { get; } = [];
 
+    /// <summary>Default lifetime for handlers, processors, and behaviors that don't specify one.</summary>
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Transient;
+
+    /// <summary>
+    /// Controls when <see cref="IRequestExceptionAction{TRequest, TException}"/> implementations fire
+    /// relative to <see cref="IRequestExceptionHandler{TRequest, TResponse, TException}"/>.
+    /// Default is <see cref="OpenMediatR.RequestExceptionActionProcessorStrategy.ApplyForUnhandledExceptions"/>.
+    /// </summary>
+    public RequestExceptionActionProcessorStrategy RequestExceptionActionProcessorStrategy { get; set; }
+        = RequestExceptionActionProcessorStrategy.ApplyForUnhandledExceptions;
+
+    /// <summary>
+    /// Optional explicit <see cref="INotificationPublisher"/> instance. When set, takes precedence over
+    /// <see cref="NotificationPublisherType"/>. Useful for publishers that need configuration not
+    /// expressible through DI alone.
+    /// </summary>
+    public INotificationPublisher? NotificationPublisher { get; set; }
 
     /// <summary>
     /// When <c>true</c>, the assembly scan registers <see cref="IRequestPreProcessor{TRequest}"/> and
@@ -55,6 +76,9 @@ public sealed class OpenMediatRConfiguration
     public OpenMediatRConfiguration RegisterServicesFromAssemblyContaining<T>()
         => RegisterServicesFromAssembly(typeof(T).Assembly);
 
+    public OpenMediatRConfiguration RegisterServicesFromAssemblyContaining(Type type)
+        => RegisterServicesFromAssembly(type.Assembly);
+
     public OpenMediatRConfiguration RegisterServicesFromAssembly(Assembly assembly)
     {
         AssembliesToRegister.Add(assembly);
@@ -67,159 +91,102 @@ public sealed class OpenMediatRConfiguration
         return this;
     }
 
-    public OpenMediatRConfiguration AddOpenBehavior(Type openBehaviorType, ServiceLifetime? lifetime = null)
+    private static void EnsureNotOpenGeneric(Type type, string paramName)
     {
-        if (!openBehaviorType.IsGenericTypeDefinition)
-            throw new ArgumentException(
-                $"{openBehaviorType.Name} must be an open generic type.", nameof(openBehaviorType));
-
-        var implementsPipeline = openBehaviorType.GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IPipelineBehavior<,>));
-
-        if (!implementsPipeline)
-            throw new ArgumentException(
-                $"{openBehaviorType.Name} must implement {typeof(IPipelineBehavior<,>).Name}.", nameof(openBehaviorType));
-
-        BehaviorsToRegister.Add(new ServiceDescriptor(
-            typeof(IPipelineBehavior<,>), openBehaviorType, lifetime ?? Lifetime));
-
-        return this;
+        if (type.IsGenericTypeDefinition)
+            throw new ArgumentException($"{type.Name} cannot be an open generic type.", paramName);
     }
 
-    public OpenMediatRConfiguration AddOpenStreamBehavior(Type openBehaviorType, ServiceLifetime? lifetime = null)
+    private static void EnsureOpenGeneric(Type type, string paramName)
     {
-        if (!openBehaviorType.IsGenericTypeDefinition)
-            throw new ArgumentException(
-                $"{openBehaviorType.Name} must be an open generic type.", nameof(openBehaviorType));
-
-        var implementsPipeline = openBehaviorType.GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStreamPipelineBehavior<,>));
-
-        if (!implementsPipeline)
-            throw new ArgumentException(
-                $"{openBehaviorType.Name} must implement {typeof(IStreamPipelineBehavior<,>).Name}.", nameof(openBehaviorType));
-
-        BehaviorsToRegister.Add(new ServiceDescriptor(
-            typeof(IStreamPipelineBehavior<,>), openBehaviorType, lifetime ?? Lifetime));
-
-        return this;
+        if (!type.IsGenericTypeDefinition)
+            throw new ArgumentException($"{type.Name} must be an open generic type.", paramName);
     }
 
-    /// <summary>
-    /// Explicitly registers a single <see cref="IRequestPreProcessor{TRequest}"/> implementation.
-    /// The pre-processor wrapper behavior is wired automatically. Use this when you do not want to
-    /// enable <see cref="AutoRegisterRequestProcessors"/> assembly scanning but still want pre-processors.
-    /// </summary>
-    public OpenMediatRConfiguration AddRequestPreProcessor<TPreProcessor>(ServiceLifetime? lifetime = null)
-        where TPreProcessor : class
-        => AddRequestPreProcessor(typeof(TPreProcessor), lifetime);
-
-    public OpenMediatRConfiguration AddRequestPreProcessor(Type preProcessorType, ServiceLifetime? lifetime = null)
+    private static IReadOnlyList<Type> FindClosedGenericInterfaces(Type type, Type genericTypeDefinition)
     {
-        if (preProcessorType.IsGenericTypeDefinition)
+        return type.GetInterfaces()
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == genericTypeDefinition)
+            .ToArray();
+    }
+
+    private static void EnsureImplementsGenericInterface(Type type, Type genericTypeDefinition, string paramName)
+    {
+        if (FindClosedGenericInterfaces(type, genericTypeDefinition).Count == 0)
             throw new ArgumentException(
-                $"{preProcessorType.Name} cannot be an open generic type.", nameof(preProcessorType));
+                $"{type.Name} must implement {genericTypeDefinition.Name}.", paramName);
+    }
 
-        var serviceTypes = preProcessorType.GetInterfaces()
-            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestPreProcessor<>))
-            .ToList();
-
-        if (serviceTypes.Count == 0)
+    private static void EnsureClosedGenericServiceType(Type serviceType, Type expectedGenericDefinition, string paramName)
+    {
+        if (!serviceType.IsGenericType ||
+            serviceType.IsGenericTypeDefinition ||
+            serviceType.GetGenericTypeDefinition() != expectedGenericDefinition)
+        {
             throw new ArgumentException(
-                $"{preProcessorType.Name} must implement {typeof(IRequestPreProcessor<>).Name}.", nameof(preProcessorType));
+                $"{serviceType.Name} must be a closed generic of {expectedGenericDefinition.Name}.", paramName);
+        }
+    }
 
-        foreach (var serviceType in serviceTypes)
-            RequestPreProcessorsToRegister.Add(
-                new ServiceDescriptor(serviceType, preProcessorType, lifetime ?? ServiceLifetime.Transient));
-
-        return this;
+    private static void EnsureAssignable(Type serviceType, Type implementationType, string paramName)
+    {
+        if (!serviceType.IsAssignableFrom(implementationType))
+            throw new ArgumentException(
+                $"{implementationType.Name} must implement {serviceType.Name}.", paramName);
     }
 
     /// <summary>
-    /// Explicitly registers a single <see cref="IRequestPostProcessor{TRequest, TResponse}"/> implementation.
-    /// The post-processor wrapper behavior is wired automatically. Use this when you do not want to
-    /// enable <see cref="AutoRegisterRequestProcessors"/> assembly scanning but still want post-processors.
+    /// Closed-generic registration from an implementation type. Finds every closed
+    /// <paramref name="genericInterface"/> the implementation declares and adds one descriptor per match.
     /// </summary>
-    public OpenMediatRConfiguration AddRequestPostProcessor<TPostProcessor>(ServiceLifetime? lifetime = null)
-        where TPostProcessor : class
-        => AddRequestPostProcessor(typeof(TPostProcessor), lifetime);
-
-    public OpenMediatRConfiguration AddRequestPostProcessor(Type postProcessorType, ServiceLifetime? lifetime = null)
+    private static void AddClosedFromImplementation(
+        List<ServiceDescriptor> destination,
+        Type genericInterface,
+        Type implementationType,
+        ServiceLifetime? serviceLifetime)
     {
-        if (postProcessorType.IsGenericTypeDefinition)
-            throw new ArgumentException(
-                $"{postProcessorType.Name} cannot be an open generic type.", nameof(postProcessorType));
-
-        var serviceTypes = postProcessorType.GetInterfaces()
-            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestPostProcessor<,>))
-            .ToList();
-
+        EnsureNotOpenGeneric(implementationType, nameof(implementationType));
+        var serviceTypes = FindClosedGenericInterfaces(implementationType, genericInterface);
         if (serviceTypes.Count == 0)
             throw new ArgumentException(
-                $"{postProcessorType.Name} must implement {typeof(IRequestPostProcessor<,>).Name}.", nameof(postProcessorType));
+                $"{implementationType.Name} must implement {genericInterface.Name}.", nameof(implementationType));
 
         foreach (var serviceType in serviceTypes)
-            RequestPostProcessorsToRegister.Add(
-                new ServiceDescriptor(serviceType, postProcessorType, lifetime ?? ServiceLifetime.Transient));
-
-        return this;
+            destination.Add(new ServiceDescriptor(serviceType, implementationType, serviceLifetime ?? ServiceLifetime.Transient));
     }
 
     /// <summary>
-    /// Explicitly registers an <see cref="IRequestExceptionHandler{TRequest, TResponse, TException}"/>
-    /// implementation. The exception-handler wrapper behavior is wired automatically.
+    /// Closed-generic registration with an explicit <paramref name="serviceType"/> (closed generic) and
+    /// implementation type. Validates the service type is the right closed shape and the implementation
+    /// is assignable.
     /// </summary>
-    public OpenMediatRConfiguration AddRequestExceptionHandler<TExceptionHandler>(ServiceLifetime? lifetime = null)
-        where TExceptionHandler : class
-        => AddRequestExceptionHandler(typeof(TExceptionHandler), lifetime);
-
-    public OpenMediatRConfiguration AddRequestExceptionHandler(Type exceptionHandlerType, ServiceLifetime? lifetime = null)
+    private static void AddClosedWithExplicitService(
+        List<ServiceDescriptor> destination,
+        Type genericInterface,
+        Type serviceType,
+        Type implementationType,
+        ServiceLifetime? serviceLifetime)
     {
-        if (exceptionHandlerType.IsGenericTypeDefinition)
-            throw new ArgumentException(
-                $"{exceptionHandlerType.Name} cannot be an open generic type.", nameof(exceptionHandlerType));
+        EnsureClosedGenericServiceType(serviceType, genericInterface, nameof(serviceType));
+        EnsureNotOpenGeneric(implementationType, nameof(implementationType));
+        EnsureAssignable(serviceType, implementationType, nameof(implementationType));
 
-        var serviceTypes = exceptionHandlerType.GetInterfaces()
-            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestExceptionHandler<,,>))
-            .ToList();
-
-        if (serviceTypes.Count == 0)
-            throw new ArgumentException(
-                $"{exceptionHandlerType.Name} must implement {typeof(IRequestExceptionHandler<,,>).Name}.", nameof(exceptionHandlerType));
-
-        foreach (var serviceType in serviceTypes)
-            RequestExceptionHandlersToRegister.Add(
-                new ServiceDescriptor(serviceType, exceptionHandlerType, lifetime ?? ServiceLifetime.Transient));
-
-        return this;
+        destination.Add(new ServiceDescriptor(serviceType, implementationType, serviceLifetime ?? ServiceLifetime.Transient));
     }
 
     /// <summary>
-    /// Explicitly registers an <see cref="IRequestExceptionAction{TRequest, TException}"/>
-    /// implementation. The exception-action wrapper behavior is wired automatically.
+    /// Open-generic registration. Validates the open generic shape and that it implements the expected
+    /// interface, then registers under the open generic interface itself.
     /// </summary>
-    public OpenMediatRConfiguration AddRequestExceptionAction<TExceptionAction>(ServiceLifetime? lifetime = null)
-        where TExceptionAction : class
-        => AddRequestExceptionAction(typeof(TExceptionAction), lifetime);
-
-    public OpenMediatRConfiguration AddRequestExceptionAction(Type exceptionActionType, ServiceLifetime? lifetime = null)
+    private void AddOpenGenericRegistration(
+        List<ServiceDescriptor> destination,
+        Type genericInterface,
+        Type openType,
+        ServiceLifetime? serviceLifetime)
     {
-        if (exceptionActionType.IsGenericTypeDefinition)
-            throw new ArgumentException(
-                $"{exceptionActionType.Name} cannot be an open generic type.", nameof(exceptionActionType));
+        EnsureOpenGeneric(openType, nameof(openType));
+        EnsureImplementsGenericInterface(openType, genericInterface, nameof(openType));
 
-        var serviceTypes = exceptionActionType.GetInterfaces()
-            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestExceptionAction<,>))
-            .ToList();
-
-        if (serviceTypes.Count == 0)
-            throw new ArgumentException(
-                $"{exceptionActionType.Name} must implement {typeof(IRequestExceptionAction<,>).Name}.", nameof(exceptionActionType));
-
-        foreach (var serviceType in serviceTypes)
-            RequestExceptionActionsToRegister.Add(
-                new ServiceDescriptor(serviceType, exceptionActionType, lifetime ?? ServiceLifetime.Transient));
-
-        return this;
+        destination.Add(new ServiceDescriptor(genericInterface, openType, serviceLifetime ?? Lifetime));
     }
 }

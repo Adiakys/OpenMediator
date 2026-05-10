@@ -23,14 +23,11 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
       - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal
+        run: dotnet test --configuration Release --no-restore /p:GeneratePackageOnBuild=false
 
       - name: Pack
-        run: dotnet pack --configuration Release --no-build --output ./nupkgs
+        run: dotnet pack --configuration Release --no-restore /p:GeneratePackageOnBuild=false --output ./nupkgs
 
       - name: Push to GitHub Packages
         run: |

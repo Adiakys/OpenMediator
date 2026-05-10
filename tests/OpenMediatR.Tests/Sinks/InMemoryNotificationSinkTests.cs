@@ -76,4 +76,50 @@ public sealed class InMemoryNotificationSinkTests
         handler1.NotificationCount.Should().Be(1);
         handler2.NotificationCount.Should().Be(1);
     }
+
+    [Fact]
+    public async Task Dispatch_WithContinueOnExceptionPublisher_RunsAllHandlersAndAggregatesExceptions()
+    {
+        var ok = new TestHandler();
+        var firstFailure = new InvalidOperationException("first");
+        var secondFailure = new InvalidOperationException("second");
+
+        var failing1 = new Mock<INotificationHandler<TestNotification>>();
+        failing1.Setup(x => x.Handle(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(firstFailure);
+        var failing2 = new Mock<INotificationHandler<TestNotification>>();
+        failing2.Setup(x => x.Handle(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(secondFailure);
+
+        var services = new Mock<IServiceProvider>();
+        services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
+            .Returns(new List<INotificationHandler<TestNotification>> { failing1.Object, ok, failing2.Object });
+
+        var sink = new InMemoryNotificationSink(services.Object, new ForeachAwaitContinueOnExceptionPublisher());
+
+        var act = () => sink.Dispatch(new TestNotification());
+
+        var thrown = (await act.Should().ThrowAsync<AggregateException>()).Which;
+        thrown.InnerExceptions.Should().HaveCount(2);
+        thrown.InnerExceptions.Should().BeEquivalentTo(new[] { firstFailure, secondFailure });
+        ok.NotificationCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Dispatch_WithContinueOnExceptionPublisher_WhenNoHandlerThrows_DoesNotThrow()
+    {
+        var handler1 = new TestHandler();
+        var handler2 = new TestHandler();
+
+        var services = new Mock<IServiceProvider>();
+        services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
+            .Returns(new List<INotificationHandler<TestNotification>> { handler1, handler2 });
+
+        var sink = new InMemoryNotificationSink(services.Object, new ForeachAwaitContinueOnExceptionPublisher());
+
+        await sink.Dispatch(new TestNotification());
+
+        handler1.NotificationCount.Should().Be(1);
+        handler2.NotificationCount.Should().Be(1);
+    }
 }

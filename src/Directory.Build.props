@@ -3,16 +3,20 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>1.0.0</Version>
+        <Version>1.1.0</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
-        <Description>Lightweight, free, open-source in-process mediator for .NET. Supports requests, notifications, pipeline behaviors, and pluggable notification sinks.</Description>
-        <PackageProjectUrl>https://github.com/Adiakys/OpenMediatR</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/Adiakys/OpenMediatR</RepositoryUrl>
+        <Description>Lightweight, free, open-source in-process mediator for .NET. Supports requests, streaming requests, notifications, pipeline behaviors, and pluggable notification sinks.</Description>
+        <PackageProjectUrl>https://github.com/Adiakys/OpenMediator</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Adiakys/OpenMediator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-        <PackageReleaseNotes>First release: requests, notifications, pipeline behaviors, notification sinks, publishing strategies.</PackageReleaseNotes>
-        <PackageTags>mediator;cqrs;pipeline;notifications;request-response;messaging;dotnet;open-source</PackageTags>
+        <PackageReleaseNotes>
+1.1.0:
+- Add IStreamRequest&lt;T&gt; / IStreamRequestHandler&lt;,&gt; with IAsyncEnumerable responses, plus IStreamPipelineBehavior&lt;,&gt; registered via cfg.AddOpenStreamBehavior(...). ISender now exposes typed and object-typed CreateStream overloads (MediatR-compatible API).
+- Add ForeachAwaitContinueOnExceptionPublisher: sequential notification publisher that runs every handler and aggregates failures into an AggregateException.
+        </PackageReleaseNotes>
+        <PackageTags>mediator;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
         

@@ -7,6 +7,8 @@ public sealed class OpenMediatRConfiguration
 {
     internal List<Assembly> AssembliesToRegister { get; } = [];
     internal List<ServiceDescriptor> BehaviorsToRegister { get; } = [];
+    internal List<ServiceDescriptor> RequestPreProcessorsToRegister { get; } = [];
+    internal List<ServiceDescriptor> RequestPostProcessorsToRegister { get; } = [];
 
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Transient;
 
@@ -97,6 +99,66 @@ public sealed class OpenMediatRConfiguration
 
         BehaviorsToRegister.Add(new ServiceDescriptor(
             typeof(IStreamPipelineBehavior<,>), openBehaviorType, lifetime ?? Lifetime));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Explicitly registers a single <see cref="IRequestPreProcessor{TRequest}"/> implementation.
+    /// The pre-processor wrapper behavior is wired automatically. Use this when you do not want to
+    /// enable <see cref="AutoRegisterRequestProcessors"/> assembly scanning but still want pre-processors.
+    /// </summary>
+    public OpenMediatRConfiguration AddRequestPreProcessor<TPreProcessor>(ServiceLifetime? lifetime = null)
+        where TPreProcessor : class
+        => AddRequestPreProcessor(typeof(TPreProcessor), lifetime);
+
+    public OpenMediatRConfiguration AddRequestPreProcessor(Type preProcessorType, ServiceLifetime? lifetime = null)
+    {
+        if (preProcessorType.IsGenericTypeDefinition)
+            throw new ArgumentException(
+                $"{preProcessorType.Name} cannot be an open generic type.", nameof(preProcessorType));
+
+        var serviceTypes = preProcessorType.GetInterfaces()
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestPreProcessor<>))
+            .ToList();
+
+        if (serviceTypes.Count == 0)
+            throw new ArgumentException(
+                $"{preProcessorType.Name} must implement {typeof(IRequestPreProcessor<>).Name}.", nameof(preProcessorType));
+
+        foreach (var serviceType in serviceTypes)
+            RequestPreProcessorsToRegister.Add(
+                new ServiceDescriptor(serviceType, preProcessorType, lifetime ?? ServiceLifetime.Transient));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Explicitly registers a single <see cref="IRequestPostProcessor{TRequest, TResponse}"/> implementation.
+    /// The post-processor wrapper behavior is wired automatically. Use this when you do not want to
+    /// enable <see cref="AutoRegisterRequestProcessors"/> assembly scanning but still want post-processors.
+    /// </summary>
+    public OpenMediatRConfiguration AddRequestPostProcessor<TPostProcessor>(ServiceLifetime? lifetime = null)
+        where TPostProcessor : class
+        => AddRequestPostProcessor(typeof(TPostProcessor), lifetime);
+
+    public OpenMediatRConfiguration AddRequestPostProcessor(Type postProcessorType, ServiceLifetime? lifetime = null)
+    {
+        if (postProcessorType.IsGenericTypeDefinition)
+            throw new ArgumentException(
+                $"{postProcessorType.Name} cannot be an open generic type.", nameof(postProcessorType));
+
+        var serviceTypes = postProcessorType.GetInterfaces()
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestPostProcessor<,>))
+            .ToList();
+
+        if (serviceTypes.Count == 0)
+            throw new ArgumentException(
+                $"{postProcessorType.Name} must implement {typeof(IRequestPostProcessor<,>).Name}.", nameof(postProcessorType));
+
+        foreach (var serviceType in serviceTypes)
+            RequestPostProcessorsToRegister.Add(
+                new ServiceDescriptor(serviceType, postProcessorType, lifetime ?? ServiceLifetime.Transient));
 
         return this;
     }

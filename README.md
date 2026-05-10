@@ -198,17 +198,23 @@ public sealed class AuditUserAccess : IRequestPostProcessor<GetUser, User>
 
 Multiple processors per request type are supported and execute in registration order. Pre-processors run before the handler. Post-processors run after the handler returns successfully — they are skipped if the handler or any preceding step throws. User pipeline behaviors registered via `AddOpenBehavior` wrap the processors (outermost), so behavior `before` logic runs before pre-processors and behavior `after` logic runs after post-processors.
 
-Auto-registration is **opt-in** (mirroring MediatR). Set the flag to scan for processor implementations and wire the wrapper behaviors automatically:
+There are two ways to register processors:
 
 ```csharp
 services.AddOpenMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<MyRequestHandler>();
-    cfg.AutoRegisterRequestProcessors = true;
+
+    // Option 1 — explicit, recommended when you want full control:
+    cfg.AddRequestPreProcessor<ValidateUser>();
+    cfg.AddRequestPostProcessor<AuditUserAccess>();
+
+    // Option 2 — opt-in assembly scan (mirrors MediatR):
+    // cfg.AutoRegisterRequestProcessors = true;
 });
 ```
 
-Without the flag, register processors and the wrapper behaviors yourself if you want to use them.
+Both paths trigger auto-registration of the matching pipeline-behavior wrappers (`RequestPreProcessorBehavior<,>`, `RequestPostProcessorBehavior<,>`). Without one of them, no processor logic is wired in.
 
 ## Notification Sinks
 

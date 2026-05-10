@@ -23,6 +23,32 @@ public sealed class RequestProcessorTests
     }
 
     [Fact]
+    public async Task ExplicitRegistration_WithoutAutoScan_RunsPreAndPostProcessors()
+    {
+        var trace = new List<string>();
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddSingleton(trace);
+        services.AddOpenMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<RequestProcessorTests>();
+            cfg.AddRequestPreProcessor<TestPreProcessor1>();
+            cfg.AddRequestPostProcessor<TestPostProcessor>();
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var sender = provider.GetRequiredService<ISender>();
+
+        await sender.Send(new TestRequest());
+
+        trace.Should().StartWith(new[] { nameof(TestPreProcessor1) });
+        trace.Should().EndWith($"{nameof(TestPostProcessor)}(Test)");
+        // TestPreProcessor2 was not explicitly registered and auto-scan is off
+        trace.Should().NotContain(nameof(TestPreProcessor2));
+    }
+
+    [Fact]
     public async Task PreProcessors_RunBeforeHandler_InRegistrationOrder()
     {
         var trace = new List<string>();

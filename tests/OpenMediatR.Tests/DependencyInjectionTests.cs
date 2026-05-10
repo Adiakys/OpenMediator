@@ -161,13 +161,18 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void AddOpenMediatR_WithNoAssemblies_ShouldThrow()
+    public void AddOpenMediatR_WithNoAssemblies_DoesNotThrowAndRegistersCoreServices()
     {
         var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
         var act = () => services.AddOpenMediatR(_ => { });
 
-        act.Should().Throw<ArgumentException>();
+        act.Should().NotThrow();
+        services.Should().Contain(x => x.ServiceType == typeof(ISender));
+        services.Should().Contain(x => x.ServiceType == typeof(IPublisher));
+        services.Should().Contain(x => x.ServiceType == typeof(IMediator));
     }
 
     [Fact]
@@ -241,6 +246,64 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
+    public void AddRequestPreProcessor_RegistersProcessorAndWrapperBehavior()
+    {
+        var services = CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddRequestPreProcessor<TestPreProcessor1>();
+        });
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestPreProcessor<TestRequest>) &&
+            x.ImplementationType == typeof(TestPreProcessor1));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestPreProcessorBehavior<,>));
+    }
+
+    [Fact]
+    public void AddRequestPostProcessor_RegistersProcessorAndWrapperBehavior()
+    {
+        var services = CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddRequestPostProcessor<TestPostProcessor>();
+        });
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestPostProcessor<TestRequest, string>) &&
+            x.ImplementationType == typeof(TestPostProcessor));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestPostProcessorBehavior<,>));
+    }
+
+    [Fact]
+    public void AddRequestPreProcessor_WithNonImplementingType_Throws()
+    {
+        var act = () => CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddRequestPreProcessor(typeof(TestHandler));
+        });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void AddRequestPostProcessor_WithOpenGenericType_Throws()
+    {
+        var act = () => CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddRequestPostProcessor(typeof(List<>));
+        });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void AddOpenMediatR_CalledTwice_ShouldNotDuplicateScannedHandlersAndProcessors()
     {
         var services = new ServiceCollection();
@@ -274,6 +337,34 @@ public sealed class DependencyInjectionTests
         services.Where(x =>
             x.ServiceType == typeof(IPipelineBehavior<,>) &&
             x.ImplementationType == typeof(RequestPreProcessorBehavior<,>))
+            .Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void AddOpenMediatR_CalledTwice_ShouldNotDuplicateUserBehaviors()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+
+        Action<OpenMediatRConfiguration> configure = cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.AddOpenBehavior(typeof(TestPipelineBehavior1<,>));
+            cfg.AddOpenBehavior(typeof(TestPipelineBehavior2<,>));
+        };
+
+        services.AddOpenMediatR(configure);
+        services.AddOpenMediatR(configure);
+
+        services.Where(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(TestPipelineBehavior1<,>))
+            .Should().HaveCount(1);
+
+        services.Where(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(TestPipelineBehavior2<,>))
             .Should().HaveCount(1);
     }
 

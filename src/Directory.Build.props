@@ -3,18 +3,21 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>1.1.0</Version>
+        <Version>1.2.0</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
-        <Description>Lightweight, free, open-source in-process mediator for .NET. Supports requests, streaming requests, notifications, pipeline behaviors, and pluggable notification sinks.</Description>
+        <Description>Lightweight, free, open-source in-process mediator for .NET. Supports requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, and pluggable notification sinks.</Description>
         <PackageProjectUrl>https://github.com/Adiakys/OpenMediator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Adiakys/OpenMediator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReleaseNotes>
-1.1.0:
-- Add IStreamRequest&lt;T&gt; / IStreamRequestHandler&lt;,&gt; with IAsyncEnumerable responses, plus IStreamPipelineBehavior&lt;,&gt; registered via cfg.AddOpenStreamBehavior(...). ISender now exposes typed and object-typed CreateStream overloads (MediatR-compatible API).
-- Add ForeachAwaitContinueOnExceptionPublisher: sequential notification publisher that runs every handler and aggregates failures into an AggregateException.
+1.2.0:
+- Add IRequestPreProcessor&lt;TRequest&gt; and IRequestPostProcessor&lt;TRequest, TResponse&gt; (MediatR-compatible). Multiple processors per request type are supported and execute in registration order; post-processors are skipped when the handler or any preceding step throws.
+- Add explicit registration via cfg.AddRequestPreProcessor&lt;T&gt;() and cfg.AddRequestPostProcessor&lt;T&gt;(); the wrapper pipeline behaviors are wired automatically when at least one processor is registered.
+- Add cfg.AutoRegisterRequestProcessors flag (default false) for opt-in assembly scanning of processors, mirroring MediatR.
+- AddOpenMediatR no longer throws when no assemblies are configured to scan (matches MediatR); it registers core services and lets you compose the rest explicitly.
+- Fix: AddOpenMediatR is now idempotent across multiple calls for scanned INotificationHandler&lt;&gt;, user pipeline behaviors registered via AddOpenBehavior/AddOpenStreamBehavior, and pre/post-processors (switched to TryAddEnumerable, deduplicating by service+implementation pair).
         </PackageReleaseNotes>
         <PackageTags>mediator;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>

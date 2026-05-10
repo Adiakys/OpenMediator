@@ -246,6 +246,73 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
+    public void AddOpenMediatR_AutoRegistersExceptionHandlersAndActionsFromAssembly()
+    {
+        var services = CreateServices();
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestExceptionHandler<TestRequest, string, InvalidOperationException>) &&
+            x.ImplementationType == typeof(TestExceptionHandler));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestExceptionAction<TestRequest, Exception>) &&
+            x.ImplementationType == typeof(TestExceptionAction));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestExceptionProcessorBehavior<,>));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestExceptionActionProcessorBehavior<,>));
+    }
+
+    [Fact]
+    public void AddRequestExceptionHandler_RegistersHandlerAndWrapperBehavior()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddOpenMediatR(cfg => cfg.AddRequestExceptionHandler<TestExceptionHandler>());
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestExceptionHandler<TestRequest, string, InvalidOperationException>) &&
+            x.ImplementationType == typeof(TestExceptionHandler));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestExceptionProcessorBehavior<,>));
+    }
+
+    [Fact]
+    public void AddRequestExceptionAction_RegistersActionAndWrapperBehavior()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddOpenMediatR(cfg => cfg.AddRequestExceptionAction<TestExceptionAction>());
+
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IRequestExceptionAction<TestRequest, Exception>) &&
+            x.ImplementationType == typeof(TestExceptionAction));
+        services.Should().Contain(x =>
+            x.ServiceType == typeof(IPipelineBehavior<,>) &&
+            x.ImplementationType == typeof(RequestExceptionActionProcessorBehavior<,>));
+    }
+
+    [Fact]
+    public void AddRequestExceptionHandler_WithNonImplementingType_Throws()
+    {
+        var services = new ServiceCollection();
+        var act = () => services.AddOpenMediatR(cfg => cfg.AddRequestExceptionHandler(typeof(TestHandler)));
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void AddRequestExceptionAction_WithOpenGenericType_Throws()
+    {
+        var services = new ServiceCollection();
+        var act = () => services.AddOpenMediatR(cfg => cfg.AddRequestExceptionAction(typeof(List<>)));
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void AddRequestPreProcessor_RegistersProcessorAndWrapperBehavior()
     {
         var services = CreateServices(cfg =>

@@ -26,6 +26,12 @@ public static class ServiceCollectionExtensions
         foreach (var descriptor in config.BehaviorsToRegister)
             services.TryAddEnumerable(descriptor);
 
+        // Exception handler/action wrappers are registered AFTER user behaviors so they become outermost
+        // and can catch exceptions thrown anywhere in the pipeline. Action wrapper is registered last,
+        // making it the outermost — it runs through the handler wrapper first (which may recover) and
+        // only fires its actions when the exception still bubbles up.
+        ConfigureRequestExceptionHandlers(services, config, candidateTypes);
+
         var lifetime = config.Lifetime;
         services.TryAdd(new ServiceDescriptor(typeof(ISender), typeof(OpenMediatRSender), lifetime));
         services.TryAdd(new ServiceDescriptor(typeof(IPublisher), typeof(OpenMediatRPublisher), lifetime));
@@ -117,5 +123,61 @@ public static class ServiceCollectionExtensions
         }
 
         return (hasPreProcessor, hasPostProcessor);
+    }
+
+    private static void ConfigureRequestExceptionHandlers(
+        IServiceCollection services, OpenMediatRConfiguration config, IReadOnlyList<Type> candidateTypes)
+    {
+        // Auto-scan is unconditional, mirroring MediatR (no opt-in flag for exception handlers/actions).
+        var (hasHandlerFromScan, hasActionFromScan) = ScanRequestExceptionHandlers(services, candidateTypes);
+
+        foreach (var descriptor in config.RequestExceptionHandlersToRegister)
+            services.TryAddEnumerable(descriptor);
+
+        foreach (var descriptor in config.RequestExceptionActionsToRegister)
+            services.TryAddEnumerable(descriptor);
+
+        var hasHandler = hasHandlerFromScan || config.RequestExceptionHandlersToRegister.Count > 0;
+        var hasAction = hasActionFromScan || config.RequestExceptionActionsToRegister.Count > 0;
+
+        // Handler wrapper registered first → inner. Action wrapper registered after → outermost.
+        // Recovery via SetHandled returns a response from the handler wrapper, suppressing the
+        // exception before it reaches the action wrapper (so actions don't fire on handled errors).
+        if (hasHandler)
+            services.TryAddEnumerable(ServiceDescriptor.Describe(
+                typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
+
+        if (hasAction)
+            services.TryAddEnumerable(ServiceDescriptor.Describe(
+                typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
+    }
+
+    private static (bool HasHandler, bool HasAction) ScanRequestExceptionHandlers(
+        IServiceCollection services, IReadOnlyList<Type> candidateTypes)
+    {
+        var hasHandler = false;
+        var hasAction = false;
+
+        foreach (var type in candidateTypes)
+        {
+            foreach (var iface in type.GetInterfaces())
+            {
+                if (!iface.IsGenericType) continue;
+                var def = iface.GetGenericTypeDefinition();
+
+                if (def == typeof(IRequestExceptionHandler<,,>))
+                {
+                    services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
+                    hasHandler = true;
+                }
+                else if (def == typeof(IRequestExceptionAction<,>))
+                {
+                    services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
+                    hasAction = true;
+                }
+            }
+        }
+
+        return (hasHandler, hasAction);
     }
 }

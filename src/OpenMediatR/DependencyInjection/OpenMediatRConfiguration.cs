@@ -9,6 +9,8 @@ public sealed class OpenMediatRConfiguration
     internal List<ServiceDescriptor> BehaviorsToRegister { get; } = [];
     internal List<ServiceDescriptor> RequestPreProcessorsToRegister { get; } = [];
     internal List<ServiceDescriptor> RequestPostProcessorsToRegister { get; } = [];
+    internal List<ServiceDescriptor> RequestExceptionHandlersToRegister { get; } = [];
+    internal List<ServiceDescriptor> RequestExceptionActionsToRegister { get; } = [];
 
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Transient;
 
@@ -159,6 +161,64 @@ public sealed class OpenMediatRConfiguration
         foreach (var serviceType in serviceTypes)
             RequestPostProcessorsToRegister.Add(
                 new ServiceDescriptor(serviceType, postProcessorType, lifetime ?? ServiceLifetime.Transient));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Explicitly registers an <see cref="IRequestExceptionHandler{TRequest, TResponse, TException}"/>
+    /// implementation. The exception-handler wrapper behavior is wired automatically.
+    /// </summary>
+    public OpenMediatRConfiguration AddRequestExceptionHandler<TExceptionHandler>(ServiceLifetime? lifetime = null)
+        where TExceptionHandler : class
+        => AddRequestExceptionHandler(typeof(TExceptionHandler), lifetime);
+
+    public OpenMediatRConfiguration AddRequestExceptionHandler(Type exceptionHandlerType, ServiceLifetime? lifetime = null)
+    {
+        if (exceptionHandlerType.IsGenericTypeDefinition)
+            throw new ArgumentException(
+                $"{exceptionHandlerType.Name} cannot be an open generic type.", nameof(exceptionHandlerType));
+
+        var serviceTypes = exceptionHandlerType.GetInterfaces()
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestExceptionHandler<,,>))
+            .ToList();
+
+        if (serviceTypes.Count == 0)
+            throw new ArgumentException(
+                $"{exceptionHandlerType.Name} must implement {typeof(IRequestExceptionHandler<,,>).Name}.", nameof(exceptionHandlerType));
+
+        foreach (var serviceType in serviceTypes)
+            RequestExceptionHandlersToRegister.Add(
+                new ServiceDescriptor(serviceType, exceptionHandlerType, lifetime ?? ServiceLifetime.Transient));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Explicitly registers an <see cref="IRequestExceptionAction{TRequest, TException}"/>
+    /// implementation. The exception-action wrapper behavior is wired automatically.
+    /// </summary>
+    public OpenMediatRConfiguration AddRequestExceptionAction<TExceptionAction>(ServiceLifetime? lifetime = null)
+        where TExceptionAction : class
+        => AddRequestExceptionAction(typeof(TExceptionAction), lifetime);
+
+    public OpenMediatRConfiguration AddRequestExceptionAction(Type exceptionActionType, ServiceLifetime? lifetime = null)
+    {
+        if (exceptionActionType.IsGenericTypeDefinition)
+            throw new ArgumentException(
+                $"{exceptionActionType.Name} cannot be an open generic type.", nameof(exceptionActionType));
+
+        var serviceTypes = exceptionActionType.GetInterfaces()
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestExceptionAction<,>))
+            .ToList();
+
+        if (serviceTypes.Count == 0)
+            throw new ArgumentException(
+                $"{exceptionActionType.Name} must implement {typeof(IRequestExceptionAction<,>).Name}.", nameof(exceptionActionType));
+
+        foreach (var serviceType in serviceTypes)
+            RequestExceptionActionsToRegister.Add(
+                new ServiceDescriptor(serviceType, exceptionActionType, lifetime ?? ServiceLifetime.Transient));
 
         return this;
     }

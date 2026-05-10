@@ -216,6 +216,57 @@ services.AddOpenMediatR(cfg =>
 
 Both paths trigger auto-registration of the matching pipeline-behavior wrappers (`RequestPreProcessorBehavior<,>`, `RequestPostProcessorBehavior<,>`). Without one of them, no processor logic is wired in.
 
+## Exception Handlers / Actions
+
+Handle exceptions thrown by a request handler — or by any pipeline step — without `try`/`catch` blocks scattered through your code. Two complementary contracts:
+
+- `IRequestExceptionHandler<TRequest, TResponse, TException>` — can **recover** from the exception by setting a fallback response.
+- `IRequestExceptionAction<TRequest, TException>` — runs **side-effects** (logging, metrics, ...) without recovery; the exception is always re-thrown after all matching actions complete.
+
+```csharp
+public sealed class FallbackOnConnectionLost : IRequestExceptionHandler<GetUser, User, ConnectionException>
+{
+    public Task Handle(
+        GetUser request,
+        ConnectionException exception,
+        RequestExceptionHandlerState<User> state,
+        CancellationToken cancellationToken)
+    {
+        state.SetHandled(User.Anonymous); // recover
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class LogFailures : IRequestExceptionAction<GetUser, Exception>
+{
+    private readonly ILogger<LogFailures> _logger;
+    public LogFailures(ILogger<LogFailures> logger) => _logger = logger;
+
+    public Task Execute(GetUser request, Exception exception, CancellationToken cancellationToken)
+    {
+        _logger.LogError(exception, "GetUser({Id}) failed", request.Id);
+        return Task.CompletedTask;
+    }
+}
+```
+
+Both are picked up automatically by the assembly scan — no flag required. Or register them explicitly:
+
+```csharp
+services.AddOpenMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssemblyContaining<MyRequestHandler>();
+    cfg.AddRequestExceptionHandler<FallbackOnConnectionLost>();
+    cfg.AddRequestExceptionAction<LogFailures>();
+});
+```
+
+**Type-hierarchy matching**: a handler/action declared for a base exception type catches derived ones. `IRequestExceptionAction<MyRequest, Exception>` runs for every exception thrown during `MyRequest` processing.
+
+**Order**: when an exception bubbles up, the exception-handler wrapper runs first. If a handler calls `SetHandled`, the response is returned and the action wrapper never sees the exception. If no handler recovers, the action wrapper runs every matching action and then re-throws the original exception (preserving stack trace).
+
+Multiple handlers per (request, exception) pair are supported; iteration stops as soon as one handler marks the state as handled. Multiple actions all run.
+
 ## Notification Sinks
 
 Notifications are dispatched through notification sinks. A sink determines how notifications reach their handlers.
@@ -285,13 +336,6 @@ services.AddOpenMediatR(cfg =>
     cfg.NotificationPublisherType = typeof(TaskWhenAllPublisher); // parallel
 });
 ```
-
-## Roadmap
-
-Features not yet implemented compared to [MediatR](https://github.com/jbogard/MediatR):
-
-- [ ] `IRequestExceptionHandler<TRequest, TResponse, TException>` — structured exception handling with recovery
-- [ ] `IRequestExceptionAction<TRequest, TException>` — side-effects on exceptions (logging, metrics) without handling them
 
 ## License
 

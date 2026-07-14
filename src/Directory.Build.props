@@ -3,7 +3,7 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>1.4.0</Version>
+        <Version>1.4.1</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
         <Description>Lightweight, free, open-source in-process mediator for .NET. Supports requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions, and pluggable notification sinks.</Description>

@@ -8,8 +8,8 @@ namespace OpenMediatR;
 
 internal sealed class OpenMediatRSender : ISender
 {
-    private static readonly ConcurrentDictionary<Type, RequestMetadata> RequestMetadataCache = new();
-    private static readonly ConcurrentDictionary<Type, StreamRequestMetadata> StreamMetadataCache = new();
+    private static readonly ConcurrentDictionary<(Type RequestType, Type ResponseType), RequestMetadata> RequestMetadataCache = new();
+    private static readonly ConcurrentDictionary<(Type RequestType, Type ResponseType), StreamRequestMetadata> StreamMetadataCache = new();
     private static readonly ConcurrentDictionary<Type, Func<OpenMediatRSender, object, CancellationToken, IAsyncEnumerable<object?>>> StreamObjectDispatchCache = new();
 
     private readonly IServiceProvider _services;
@@ -21,7 +21,7 @@ internal sealed class OpenMediatRSender : ISender
 
     public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
-        var metadata = GetOrCreateRequestMetadata(request.GetType());
+        var metadata = GetOrCreateRequestMetadata(request.GetType(), typeof(TResponse));
         RequestHandlerDelegate<TResponse> next = (ct) => Handle(request, metadata, ct);
         next = ConfigurePipeline(request, metadata, next);
         return next(cancellationToken);
@@ -29,7 +29,7 @@ internal sealed class OpenMediatRSender : ISender
 
     public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
-        var metadata = GetOrCreateStreamMetadata(request.GetType());
+        var metadata = GetOrCreateStreamMetadata(request.GetType(), typeof(TResponse));
         StreamHandlerDelegate<TResponse> next = (ct) => HandleStream(request, metadata, ct);
         next = ConfigureStreamPipeline(request, metadata, next);
         return next(cancellationToken);
@@ -127,13 +127,11 @@ internal sealed class OpenMediatRSender : ISender
         return next;
     }
 
-    private static RequestMetadata GetOrCreateRequestMetadata(Type requestType)
+    private static RequestMetadata GetOrCreateRequestMetadata(Type requestType, Type responseType)
     {
-        return RequestMetadataCache.GetOrAdd(requestType, _ =>
+        return RequestMetadataCache.GetOrAdd((requestType, responseType), static key =>
         {
-            var responseType = requestType.GetInterfaces()
-                .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>))
-                .GetGenericArguments()[0];
+            var (requestType, responseType) = key;
 
             var handlerType = typeof(IRequestHandler<,>).MakeGenericType(requestType, responseType);
             var handlerMethod = handlerType.GetMethod("Handle", [requestType, typeof(CancellationToken)])!;
@@ -145,13 +143,11 @@ internal sealed class OpenMediatRSender : ISender
         });
     }
 
-    private static StreamRequestMetadata GetOrCreateStreamMetadata(Type requestType)
+    private static StreamRequestMetadata GetOrCreateStreamMetadata(Type requestType, Type responseType)
     {
-        return StreamMetadataCache.GetOrAdd(requestType, _ =>
+        return StreamMetadataCache.GetOrAdd((requestType, responseType), static key =>
         {
-            var responseType = requestType.GetInterfaces()
-                .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStreamRequest<>))
-                .GetGenericArguments()[0];
+            var (requestType, responseType) = key;
 
             var handlerType = typeof(IStreamRequestHandler<,>).MakeGenericType(requestType, responseType);
             var handlerMethod = handlerType.GetMethod("Handle", [requestType, typeof(CancellationToken)])!;

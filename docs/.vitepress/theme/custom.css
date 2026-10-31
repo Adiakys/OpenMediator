@@ -1,0 +1,91 @@
+/* Brand tokens, taken from the package icon: navy #1a3e7e and cyan #29abe2. */
+:root {
+  --om-navy: #1a3e7e;
+  --om-cyan: #29abe2;
+  --om-paper: #f6f7f9;
+  --om-surface: #e9edf3;
+  --om-surface-2: #dfe4ec;
+  --om-ink: #0f1b33;
+  --om-muted: #4a5670;
+  --om-wall-ink: #ffffff;
+  --om-wall-muted: #c3cfe6;
+  --om-code-bg: #0f1b33;
+  --om-code-ink: #e6ecf7;
+  --om-code-muted: #8fa0c2;
+  --om-add: #1f6f43;
+  --om-add-bg: #dff1e6;
+  --om-del: #9b2c2c;
+  --om-del-bg: #f8e1e1;
+
+  --om-step-small: 14px;
+  --om-step-body: 17px;
+  --om-step-lead: 21px;
+  --om-step-head: 40px;
+  --om-step-display: 52px;
+
+  --om-radius: 4px;
+  --om-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --vp-font-family-base: 'Switzer', ui-sans-serif, system-ui, sans-serif;
+  --vp-c-brand-1: var(--om-navy);
+  --vp-c-brand-2: #24509e;
+  --vp-c-brand-3: var(--om-navy);
+  --vp-c-brand-soft: rgba(41, 171, 226, 0.16);
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: var(--om-paper);
+  --vp-c-bg-soft: var(--om-paper);
+  --vp-c-text-1: var(--om-ink);
+  --vp-c-text-2: var(--om-muted);
+  --vp-code-block-bg: var(--om-paper);
+  --vp-button-brand-bg: var(--om-cyan);
+  --vp-button-brand-text: var(--om-ink);
+  --vp-button-brand-hover-bg: #4dbbe9;
+  --vp-button-brand-hover-text: var(--om-ink);
+}
+
+.dark {
+  --om-paper: #111c33;
+  --om-surface: #17243f;
+  --om-surface-2: #1d2c4b;
+  --om-ink: #e8edf6;
+  --om-muted: #a9b5cc;
+  --om-add: #8fd8ac;
+  --om-add-bg: #163a29;
+  --om-del: #f2a3a3;
+  --om-del-bg: #3d1d22;
+
+  --vp-c-brand-1: #7cc8ec;
+  --vp-c-brand-2: #a2d8f1;
+  --vp-c-brand-3: #7cc8ec;
+  --vp-c-bg: #0c1529;
+  --vp-c-bg-alt: #0f1a31;
+  --vp-c-bg-soft: #111c33;
+  --vp-code-block-bg: #111c33;
+}
+
+.vp-doc {
+  letter-spacing: -0.005em;
+}
+
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3 {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.vp-doc table {
+  font-size: 0.95em;
+}
+
+/* The navigation is separated by its own tone, not by a rule. */
+.VPNavBar .divider,
+.VPNavBar .divider-line {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --om-step-head: 30px;
+  }
+}

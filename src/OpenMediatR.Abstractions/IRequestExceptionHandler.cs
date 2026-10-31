@@ -10,6 +10,14 @@ public interface IRequestExceptionHandler<in TRequest, TResponse, in TException>
     where TRequest : notnull
     where TException : Exception
 {
+    /// <summary>
+    /// Handles the exception. Call <see cref="RequestExceptionHandlerState{TResponse}.SetHandled"/> on
+    /// <paramref name="state"/> to recover with a fallback response; otherwise the exception keeps propagating.
+    /// </summary>
+    /// <param name="request">The request whose processing failed.</param>
+    /// <param name="exception">The exception thrown.</param>
+    /// <param name="state">State used to mark the exception as handled.</param>
+    /// <param name="cancellationToken">Token to observe for cancellation.</param>
     Task Handle(
         TRequest request,
         TException exception,

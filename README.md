@@ -1,6 +1,16 @@
 # OpenMediatR
 
-A lightweight, free, in-process mediator for .NET. Implements the mediator pattern with support for requests, notifications, pipeline behaviors, and pluggable notification sinks.
+[![NuGet](https://img.shields.io/nuget/v/OpenMediatR.svg)](https://www.nuget.org/packages/OpenMediatR)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-adiakys.github.io%2FOpenMediator-1a3e7e.svg)](https://adiakys.github.io/OpenMediator/)
+
+**A free, open-source MediatR alternative for .NET with a MediatR-compatible API.**
+
+OpenMediatR is a lightweight, in-process mediator: requests, stream requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions, and pluggable notification sinks. It keeps the interface and configuration names of MediatR (`IRequest`, `IRequestHandler`, `INotification`, `ISender`, `IPublisher`, `IMediator`, `IPipelineBehavior`, `RegisterServicesFromAssemblyContaining`, ...), so moving an existing codebase over is mostly a namespace change. See [Migrating from MediatR](#migrating-from-mediatr).
+
+- **Free for everyone**: Apache-2.0, no license key, no revenue threshold, including commercial use.
+- **Familiar**: same programming model and type names as MediatR, so existing knowledge, samples and tooling carry over.
+- **Small**: depends only on `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Logging.Abstractions`. Targets .NET 8 and .NET 10.
 
 ## Installation
 
@@ -140,7 +150,7 @@ All registered handlers for the notification type are executed. Multiple handler
 
 ## Pipeline Behaviors
 
-Pipeline behaviors wrap request handling, similar to middleware. They execute in registration order.
+Pipeline behaviors wrap request handling, similar to middleware. They execute in registration order: the first registered behavior is the outermost, so its code before `next()` runs first and its code after `next()` runs last.
 
 ```csharp
 public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
@@ -336,6 +346,51 @@ services.AddOpenMediatR(cfg =>
     cfg.NotificationPublisherType = typeof(TaskWhenAllPublisher); // parallel
 });
 ```
+
+## Migrating from MediatR
+
+1. Replace the package:
+
+   ```
+   dotnet remove package MediatR
+   dotnet add package OpenMediatR
+   ```
+
+2. Replace the namespace: `using MediatR;` becomes `using OpenMediatR;`.
+
+3. Replace the registration call: `AddMediatR` becomes `AddOpenMediatR`. The configuration methods keep their names:
+
+   ```csharp
+   // Before
+   services.AddMediatR(cfg =>
+   {
+       cfg.LicenseKey = "...";
+       cfg.RegisterServicesFromAssemblyContaining<Program>();
+       cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+   });
+
+   // After
+   services.AddOpenMediatR(cfg =>
+   {
+       cfg.RegisterServicesFromAssemblyContaining<Program>();
+       cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+   });
+   ```
+
+Requests, notifications, handlers, processors and exception handlers/actions compile unchanged once the namespace is updated. Pipeline behaviors may need the generic constraint shown below.
+
+### Differences to check
+
+| Area | MediatR | OpenMediatR |
+|------|---------|-------------|
+| License | Commercial license from v13 | Apache-2.0, free for any use |
+| `LicenseKey` | Required for commercial use | Not needed: remove it |
+| `Publish` with a failing handler | Exception propagates to the caller | Exception is logged per sink and **not** re-thrown (see [Notification Sinks](#notification-sinks)) |
+| `Send(object)` / `Publish(object)` | Supported | Not available: use the generic overloads |
+| Behavior constraint | `where TRequest : notnull` | `where TRequest : IRequest<TResponse>` (streams: `IStreamRequest<TResponse>`): update the `where` clause of your behaviors |
+| Notification delivery | In-process handlers | In-process handlers plus custom `INotificationSink` channels |
+
+Review any code that relies on `Publish` throwing when a notification handler fails.
 
 ## License
 

@@ -6,6 +6,7 @@ namespace OpenMediatR.NotificationPublishers;
 /// </summary>
 public sealed class ForeachAwaitPublisher : INotificationPublisher
 {
+    /// <inheritdoc />
     public async Task Publish(IEnumerable<Func<Task>> handlerCalls, CancellationToken cancellationToken)
     {
         foreach (var handlerCall in handlerCalls)

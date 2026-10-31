@@ -121,4 +121,42 @@ public sealed class IntegrationTests
 
         values.Should().Equal(0, 1);
     }
+
+    [Fact]
+    public async Task Send_WithoutRegisteredHandler_ThrowsActionableMessage()
+    {
+        using var provider = BuildProvider();
+
+        var sender = provider.GetRequiredService<ISender>();
+
+        var act = () => sender.Send(new UnhandledRequest());
+
+        (await act.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage($"*{typeof(UnhandledRequest).FullName}*IRequestHandler<UnhandledRequest, Int32>*RegisterServicesFromAssemblyContaining*");
+    }
+
+    private sealed record UnhandledRequest : IRequest<int>;
+
+    [Fact]
+    public async Task Send_WithBehaviorCallingNextWithoutToken_ReachesHandler()
+    {
+        using var provider = BuildProvider(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<IntegrationTests>();
+            cfg.AddOpenBehavior(typeof(ParameterlessNextBehavior<,>));
+        });
+
+        var sender = provider.GetRequiredService<ISender>();
+
+        var result = await sender.Send(new TestRequest());
+
+        result.Should().Be("Test");
+    }
+
+    private sealed class ParameterlessNextBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+        where TRequest : IRequest<TResponse>
+    {
+        public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+            => await next();
+    }
 }

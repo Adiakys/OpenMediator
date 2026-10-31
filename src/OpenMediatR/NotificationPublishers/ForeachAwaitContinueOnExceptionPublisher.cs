@@ -7,6 +7,7 @@ namespace OpenMediatR.NotificationPublishers;
 /// </summary>
 public sealed class ForeachAwaitContinueOnExceptionPublisher : INotificationPublisher
 {
+    /// <inheritdoc />
     public async Task Publish(IEnumerable<Func<Task>> handlerCalls, CancellationToken cancellationToken)
     {
         List<Exception>? exceptions = null;

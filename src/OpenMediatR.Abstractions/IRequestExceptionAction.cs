@@ -10,5 +10,11 @@ public interface IRequestExceptionAction<in TRequest, in TException>
     where TRequest : notnull
     where TException : Exception
 {
+    /// <summary>
+    /// Runs the side-effect for the exception.
+    /// </summary>
+    /// <param name="request">The request whose processing failed.</param>
+    /// <param name="exception">The exception thrown.</param>
+    /// <param name="cancellationToken">Token to observe for cancellation.</param>
     Task Execute(TRequest request, TException exception, CancellationToken cancellationToken);
 }

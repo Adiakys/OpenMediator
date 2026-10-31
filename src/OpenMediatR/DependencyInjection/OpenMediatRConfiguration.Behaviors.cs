@@ -18,6 +18,7 @@ public sealed partial class OpenMediatRConfiguration
         where TImplementationType : class, TServiceType
         => AddBehavior(typeof(TServiceType), typeof(TImplementationType), serviceLifetime);
 
+    /// <inheritdoc cref="AddBehavior{TServiceType, TImplementationType}"/>
     public OpenMediatRConfiguration AddBehavior(
         Type serviceType, Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
     {
@@ -34,6 +35,7 @@ public sealed partial class OpenMediatRConfiguration
         where TImplementationType : class
         => AddBehavior(typeof(TImplementationType), serviceLifetime);
 
+    /// <inheritdoc cref="AddBehavior{TImplementationType}"/>
     public OpenMediatRConfiguration AddBehavior(
         Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
     {
@@ -85,6 +87,7 @@ public sealed partial class OpenMediatRConfiguration
         where TImplementationType : class, TServiceType
         => AddStreamBehavior(typeof(TServiceType), typeof(TImplementationType), serviceLifetime);
 
+    /// <inheritdoc cref="AddStreamBehavior{TServiceType, TImplementationType}"/>
     public OpenMediatRConfiguration AddStreamBehavior(
         Type serviceType, Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
     {
@@ -101,6 +104,7 @@ public sealed partial class OpenMediatRConfiguration
         where TImplementationType : class
         => AddStreamBehavior(typeof(TImplementationType), serviceLifetime);
 
+    /// <inheritdoc cref="AddStreamBehavior{TImplementationType}"/>
     public OpenMediatRConfiguration AddStreamBehavior(
         Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
     {

@@ -5,6 +5,7 @@ namespace OpenMediatR.NotificationPublishers;
 /// </summary>
 public sealed class TaskWhenAllPublisher : INotificationPublisher
 {
+    /// <inheritdoc />
     public Task Publish(IEnumerable<Func<Task>> handlerCalls, CancellationToken cancellationToken)
         => Task.WhenAll(handlerCalls.Select(call => call()));
 }

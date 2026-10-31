@@ -14,6 +14,7 @@ public sealed partial class OpenMediatRConfiguration
         where TPreProcessor : class
         => AddRequestPreProcessor(typeof(TPreProcessor), serviceLifetime);
 
+    /// <inheritdoc cref="AddRequestPreProcessor{TPreProcessor}"/>
     public OpenMediatRConfiguration AddRequestPreProcessor(Type preProcessorType, ServiceLifetime? serviceLifetime = null)
     {
         AddClosedFromImplementation(
@@ -31,6 +32,7 @@ public sealed partial class OpenMediatRConfiguration
         where TImplementationType : class, TServiceType
         => AddRequestPreProcessor(typeof(TServiceType), typeof(TImplementationType), serviceLifetime);
 
+    /// <inheritdoc cref="AddRequestPreProcessor{TServiceType, TImplementationType}"/>
     public OpenMediatRConfiguration AddRequestPreProcessor(
         Type serviceType, Type implementationType, ServiceLifetime? serviceLifetime = null)
     {
@@ -61,6 +63,7 @@ public sealed partial class OpenMediatRConfiguration
         where TPostProcessor : class
         => AddRequestPostProcessor(typeof(TPostProcessor), serviceLifetime);
 
+    /// <inheritdoc cref="AddRequestPostProcessor{TPostProcessor}"/>
     public OpenMediatRConfiguration AddRequestPostProcessor(Type postProcessorType, ServiceLifetime? serviceLifetime = null)
     {
         AddClosedFromImplementation(
@@ -78,6 +81,7 @@ public sealed partial class OpenMediatRConfiguration
         where TImplementationType : class, TServiceType
         => AddRequestPostProcessor(typeof(TServiceType), typeof(TImplementationType), serviceLifetime);
 
+    /// <inheritdoc cref="AddRequestPostProcessor{TServiceType, TImplementationType}"/>
     public OpenMediatRConfiguration AddRequestPostProcessor(
         Type serviceType, Type implementationType, ServiceLifetime? serviceLifetime = null)
     {
@@ -108,6 +112,7 @@ public sealed partial class OpenMediatRConfiguration
         where TExceptionHandler : class
         => AddRequestExceptionHandler(typeof(TExceptionHandler), serviceLifetime);
 
+    /// <inheritdoc cref="AddRequestExceptionHandler{TExceptionHandler}"/>
     public OpenMediatRConfiguration AddRequestExceptionHandler(
         Type exceptionHandlerType, ServiceLifetime? serviceLifetime = null)
     {
@@ -126,6 +131,7 @@ public sealed partial class OpenMediatRConfiguration
         where TExceptionAction : class
         => AddRequestExceptionAction(typeof(TExceptionAction), serviceLifetime);
 
+    /// <inheritdoc cref="AddRequestExceptionAction{TExceptionAction}"/>
     public OpenMediatRConfiguration AddRequestExceptionAction(
         Type exceptionActionType, ServiceLifetime? serviceLifetime = null)
     {

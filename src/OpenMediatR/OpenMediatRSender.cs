@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace OpenMediatR;
 
@@ -47,7 +46,8 @@ internal sealed class OpenMediatRSender : ISender
     {
         try
         {
-            var handler = _services.GetRequiredService(metadata.HandlerType);
+            var handler = _services.GetService(metadata.HandlerType)
+                ?? throw HandlerNotFound(request.GetType(), metadata.HandlerType);
             return (metadata.HandlerMethod.Invoke(handler, [request, cancellationToken]) as Task<TResponse>)!;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
@@ -61,7 +61,8 @@ internal sealed class OpenMediatRSender : ISender
     {
         try
         {
-            var handler = _services.GetRequiredService(metadata.HandlerType);
+            var handler = _services.GetService(metadata.HandlerType)
+                ?? throw HandlerNotFound(request.GetType(), metadata.HandlerType);
             return (metadata.HandlerMethod.Invoke(handler, [request, cancellationToken]) as IAsyncEnumerable<TResponse>)!;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
@@ -71,12 +72,23 @@ internal sealed class OpenMediatRSender : ISender
         }
     }
 
+    private static InvalidOperationException HandlerNotFound(Type requestType, Type handlerType)
+    {
+        // Spell out the fix: callers (and coding agents) act on the message without reading the source.
+        return new InvalidOperationException(
+            $"No handler registered for request '{requestType.FullName}'. Expected a non-abstract class implementing " +
+            $"{handlerType.GetGenericTypeDefinition().Name.Split('`')[0]}<{string.Join(", ", handlerType.GetGenericArguments().Select(t => t.Name))}> " +
+            "in an assembly scanned by AddOpenMediatR: add cfg.RegisterServicesFromAssemblyContaining<T>() with T declared in the handler's assembly.");
+    }
+
     private RequestHandlerDelegate<TResponse> ConfigurePipeline<TResponse>(
         IRequest<TResponse> request,
         RequestMetadata metadata,
         RequestHandlerDelegate<TResponse> next)
     {
-        var pipelines = _services.GetServicesOrDefault(metadata.PipelineType);
+        // Wrap from the last registered behavior inwards, so the first registered one is the outermost
+        // and runs first (same order as MediatR).
+        var pipelines = _services.GetServicesOrDefault(metadata.PipelineType).Reverse();
 
         foreach (var pipeline in pipelines)
         {
@@ -104,7 +116,7 @@ internal sealed class OpenMediatRSender : ISender
         StreamRequestMetadata metadata,
         StreamHandlerDelegate<TResponse> next)
     {
-        var pipelines = _services.GetServicesOrDefault(metadata.PipelineType);
+        var pipelines = _services.GetServicesOrDefault(metadata.PipelineType).Reverse();
 
         foreach (var pipeline in pipelines)
         {

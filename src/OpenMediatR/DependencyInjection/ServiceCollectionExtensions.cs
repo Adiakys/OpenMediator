@@ -5,8 +5,28 @@ using OpenMediatR.RequestProcessors;
 
 namespace OpenMediatR;
 
+/// <summary>
+/// Registers OpenMediatR in an <see cref="IServiceCollection"/>.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers <see cref="ISender"/>, <see cref="IPublisher"/>, <see cref="IMediator"/> and the handlers found in the
+    /// configured assemblies. The OpenMediatR equivalent of MediatR's <c>AddMediatR</c>; calling it more than once
+    /// does not duplicate registrations.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// services.AddOpenMediatR(cfg =>
+    /// {
+    ///     cfg.RegisterServicesFromAssemblyContaining&lt;Program&gt;();
+    ///     cfg.AddOpenBehavior(typeof(LoggingBehavior&lt;,&gt;));
+    /// });
+    /// </code>
+    /// </example>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Configures assemblies to scan, behaviors, processors and lifetimes.</param>
+    /// <returns>The same service collection, for chaining.</returns>
     public static IServiceCollection AddOpenMediatR(
         this IServiceCollection services,
         Action<OpenMediatRConfiguration> configure)
@@ -18,10 +38,11 @@ public static class ServiceCollectionExtensions
 
         RegisterHandlers(services, candidateTypes);
 
-        // Pre/post-processor wrappers are registered before user behaviors so they end up innermost
-        // (closest to the handler). Pipeline construction wraps later registrations around earlier ones,
-        // so user behaviors register after and become outer wrappers — matching MediatR's semantics.
-        ConfigureRequestProcessors(services, config, candidateTypes);
+        // The pipeline runs behaviors in registration order: the first registered is the outermost.
+        // Exception handler/action wrappers go first so they catch exceptions thrown anywhere in the
+        // pipeline; user behaviors follow in the order they were added; pre/post-processor wrappers go
+        // last so they end up innermost (closest to the handler).
+        ConfigureRequestExceptionHandlers(services, config, candidateTypes);
 
         foreach (var descriptor in config.BehaviorsToRegister)
             services.TryAddEnumerable(descriptor);
@@ -29,11 +50,7 @@ public static class ServiceCollectionExtensions
         foreach (var descriptor in config.StreamBehaviorsToRegister)
             services.TryAddEnumerable(descriptor);
 
-        // Exception handler/action wrappers are registered AFTER user behaviors so they become outermost
-        // and can catch exceptions thrown anywhere in the pipeline. Action wrapper is registered last,
-        // making it the outermost — it runs through the handler wrapper first (which may recover) and
-        // only fires its actions when the exception still bubbles up.
-        ConfigureRequestExceptionHandlers(services, config, candidateTypes);
+        ConfigureRequestProcessors(services, config, candidateTypes);
 
         var lifetime = config.Lifetime;
         services.TryAdd(new ServiceDescriptor(typeof(ISender), typeof(OpenMediatRSender), lifetime));
@@ -96,13 +113,13 @@ public static class ServiceCollectionExtensions
         var hasPreProcessor = hasPreFromScan || config.RequestPreProcessorsToRegister.Count > 0;
         var hasPostProcessor = hasPostFromScan || config.RequestPostProcessorsToRegister.Count > 0;
 
-        if (hasPreProcessor)
-            services.TryAddEnumerable(ServiceDescriptor.Describe(
-                typeof(IPipelineBehavior<,>), typeof(RequestPreProcessorBehavior<,>), config.Lifetime));
-
         if (hasPostProcessor)
             services.TryAddEnumerable(ServiceDescriptor.Describe(
                 typeof(IPipelineBehavior<,>), typeof(RequestPostProcessorBehavior<,>), config.Lifetime));
+
+        if (hasPreProcessor)
+            services.TryAddEnumerable(ServiceDescriptor.Describe(
+                typeof(IPipelineBehavior<,>), typeof(RequestPreProcessorBehavior<,>), config.Lifetime));
     }
 
     private static (bool HasPreProcessor, bool HasPostProcessor) ScanRequestProcessors(
@@ -149,30 +166,30 @@ public static class ServiceCollectionExtensions
         var hasHandler = hasHandlerFromScan || config.RequestExceptionHandlersToRegister.Count > 0;
         var hasAction = hasActionFromScan || config.RequestExceptionActionsToRegister.Count > 0;
 
-        // Wrapper order is determined by RequestExceptionActionProcessorStrategy:
+        // Wrapper order is determined by RequestExceptionActionProcessorStrategy (first registered = outer):
         //  - ApplyForUnhandledExceptions (default): handler wrapper inner, action wrapper outer.
         //    Recovery via SetHandled suppresses the exception before it reaches the action wrapper.
         //  - ApplyForAllExceptions: action wrapper inner, handler wrapper outer.
         //    Action always sees the exception first; handler may then recover.
         if (config.RequestExceptionActionProcessorStrategy == RequestExceptionActionProcessorStrategy.ApplyForAllExceptions)
         {
-            if (hasAction)
-                services.TryAddEnumerable(ServiceDescriptor.Describe(
-                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
-
             if (hasHandler)
                 services.TryAddEnumerable(ServiceDescriptor.Describe(
                     typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
+
+            if (hasAction)
+                services.TryAddEnumerable(ServiceDescriptor.Describe(
+                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
         }
         else
         {
-            if (hasHandler)
-                services.TryAddEnumerable(ServiceDescriptor.Describe(
-                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
-
             if (hasAction)
                 services.TryAddEnumerable(ServiceDescriptor.Describe(
                     typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
+
+            if (hasHandler)
+                services.TryAddEnumerable(ServiceDescriptor.Describe(
+                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
         }
     }
 

@@ -73,18 +73,36 @@ public sealed partial class OpenMediatRConfiguration
     /// </summary>
     public Type NotificationPublisherType { get; set; } = typeof(NotificationPublishers.ForeachAwaitPublisher);
 
+    /// <summary>
+    /// Scans the assembly containing <typeparamref name="T"/> for request, stream request and notification
+    /// handlers, exception handlers and exception actions (plus pre/post-processors when
+    /// <see cref="AutoRegisterRequestProcessors"/> is enabled) and registers them.
+    /// </summary>
+    /// <typeparam name="T">Any type declared in the assembly to scan.</typeparam>
     public OpenMediatRConfiguration RegisterServicesFromAssemblyContaining<T>()
         => RegisterServicesFromAssembly(typeof(T).Assembly);
 
+    /// <summary>
+    /// Scans the assembly containing <paramref name="type"/>; see <see cref="RegisterServicesFromAssemblyContaining{T}"/>.
+    /// </summary>
+    /// <param name="type">Any type declared in the assembly to scan.</param>
     public OpenMediatRConfiguration RegisterServicesFromAssemblyContaining(Type type)
         => RegisterServicesFromAssembly(type.Assembly);
 
+    /// <summary>
+    /// Scans <paramref name="assembly"/>; see <see cref="RegisterServicesFromAssemblyContaining{T}"/>.
+    /// </summary>
+    /// <param name="assembly">The assembly to scan.</param>
     public OpenMediatRConfiguration RegisterServicesFromAssembly(Assembly assembly)
     {
         AssembliesToRegister.Add(assembly);
         return this;
     }
 
+    /// <summary>
+    /// Scans every assembly in <paramref name="assemblies"/>; see <see cref="RegisterServicesFromAssemblyContaining{T}"/>.
+    /// </summary>
+    /// <param name="assemblies">The assemblies to scan.</param>
     public OpenMediatRConfiguration RegisterServicesFromAssemblies(params Assembly[] assemblies)
     {
         AssembliesToRegister.AddRange(assemblies);

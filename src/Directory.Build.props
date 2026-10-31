@@ -3,29 +3,30 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>1.4.1</Version>
+        <Version>1.5.0</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
-        <Description>Lightweight, free, open-source in-process mediator for .NET. Supports requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions, and pluggable notification sinks.</Description>
-        <PackageProjectUrl>https://github.com/Adiakys/OpenMediator</PackageProjectUrl>
+        <Description>Free, open-source (Apache-2.0) MediatR alternative with a MediatR-compatible API: migrate by swapping the package, the namespace and AddMediatR for AddOpenMediatR. Lightweight in-process mediator for .NET supporting requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions, and pluggable notification sinks.</Description>
+        <PackageProjectUrl>https://adiakys.github.io/OpenMediator/</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Adiakys/OpenMediator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReleaseNotes>
-1.4.0:
-- Configuration API parity with MediatR. Adds closed-generic AddBehavior&lt;TServiceType, TImpl&gt;(), AddBehavior&lt;TImpl&gt;(), AddBehavior(Type), AddBehavior(Type, Type), and the equivalent four AddStreamBehavior overloads.
-- Closed-generic two-type-arg overloads for processors: AddRequestPreProcessor&lt;TServiceType, TImpl&gt;(), AddRequestPreProcessor(Type, Type), and the equivalent AddRequestPostProcessor overloads.
-- Bulk open behavior registration: cfg.AddOpenBehaviors(IEnumerable&lt;Type&gt;) and cfg.AddOpenBehaviors(IEnumerable&lt;OpenBehavior&gt;) with per-item lifetime override via the new OpenBehavior struct. Equivalent AddOpenStreamBehaviors overloads also added.
-- Add cfg.AddOpenRequestPreProcessor(Type) and cfg.AddOpenRequestPostProcessor(Type) for open generic processors that run for every request type.
-- Add cfg.RegisterServicesFromAssemblyContaining(Type) overload (Type-based, in addition to the existing generic).
-- Add RequestExceptionActionProcessorStrategy enum with values ApplyForUnhandledExceptions (default) and ApplyForAllExceptions; configurable via cfg.RequestExceptionActionProcessorStrategy. The latter forces exception actions to fire even when an exception handler recovers via SetHandled.
-- Add cfg.NotificationPublisher (instance) overload, taking precedence over NotificationPublisherType. Useful for publishers that need pre-built configuration not expressible through DI alone.
-- Internal cleanup: OpenMediatRConfiguration is now split into partial classes by concern (Behaviors, Processors), with shared validation helpers extracted.
+1.5.0:
+- Fix: pipeline behaviors now run in registration order, as documented and as in MediatR. The first registered behavior is the outermost. Previously the last registered ran first. Exception handler/action wrappers stay outermost and pre/post-processor wrappers stay innermost. Review the order of AddOpenBehavior calls if you registered more than one behavior.
+- RequestHandlerDelegate and StreamHandlerDelegate take an optional CancellationToken, so behaviors written for MediatR can call next() without arguments.
+- Send and CreateStream throw an InvalidOperationException that names the request, the handler interface to implement and the registration call to add when no handler is registered.
+- XML documentation for the whole public API, shipped in the package for IntelliSense and coding assistants.
+- Package metadata: documentation site as project URL, MediatR-alternative description and tags.
+- New documentation site: https://adiakys.github.io/OpenMediator/
         </PackageReleaseNotes>
-        <PackageTags>mediator;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source</PackageTags>
+        <PackageTags>mediator;mediatr;mediatr-alternative;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source;apache-2.0</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
         
+        <!-- Ship XML docs in the package so IntelliSense and coding agents can read the API documentation -->
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
         <!-- Build and Publish Settings -->
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <IncludeSymbols>true</IncludeSymbols>

@@ -140,6 +140,22 @@ public sealed class MediatRCompatibilityTests
         customer.Name.Should().Be("default");
     }
 
+    [Fact]
+    public async Task GenericHandlers_AreDisposedWithTheirScope()
+    {
+        var trace = new List<string>();
+        using var provider = BuildProvider(trace);
+
+        using (var scope = provider.CreateScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<ISender>().Send(new GetDisposable<Customer>());
+            await scope.ServiceProvider.GetRequiredService<IPublisher>().Publish(new Audited<Customer>());
+            trace.Should().BeEmpty();
+        }
+
+        trace.Should().BeEquivalentTo("DisposableRequestHandler disposed", "DisposableEventHandler disposed");
+    }
+
     // ---------- Duplicate handlers ----------
 
     [Fact]
@@ -257,6 +273,24 @@ public sealed class MediatRCompatibilityTests
     {
         public Task<T> Handle(GetDefault<T> request, CancellationToken cancellationToken)
             => Task.FromResult((T)(object)new Customer("default"));
+    }
+
+    private sealed record GetDisposable<T> : IRequest<string>;
+
+    private sealed class DisposableRequestHandler<T>(List<string> trace) : IRequestHandler<GetDisposable<T>, string>, IDisposable
+    {
+        public Task<string> Handle(GetDisposable<T> request, CancellationToken cancellationToken) => Task.FromResult("done");
+
+        public void Dispose() => trace.Add("DisposableRequestHandler disposed");
+    }
+
+    private sealed record Audited<T> : INotification;
+
+    private sealed class DisposableEventHandler<T>(List<string> trace) : INotificationHandler<Audited<T>>, IDisposable
+    {
+        public Task Handle(Audited<T> notification, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public void Dispose() => trace.Add("DisposableEventHandler disposed");
     }
 
     // Not scanned as a handler: only used to exercise the registry directly.

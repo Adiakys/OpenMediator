@@ -31,7 +31,7 @@ Calling `AddAnyMediator` more than once is safe: services and behaviors are not 
 
 | Option | Default | Effect |
 |--------|---------|--------|
-| `Lifetime` | `Transient` | lifetime of `ISender`, `IPublisher`, `IMediator`, the notification publisher and sink, and of open behaviors and open processors registered without one |
+| `Lifetime` | `Transient` | lifetime of `ISender`, `IPublisher`, `IMediator`, the notification sink, a custom notification publisher, and open behaviors and open processors registered without one; the built-in notification publishers hold no state and are singletons |
 | `NotificationPublisherType` | `ForeachAwaitPublisher` | how notification handlers run |
 | `NotificationPublisher` | `null` | a ready instance; wins over `NotificationPublisherType` |
 | `AutoRegisterRequestProcessors` | `false` | scan for pre- and post-processors |

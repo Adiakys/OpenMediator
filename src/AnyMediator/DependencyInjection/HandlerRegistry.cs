@@ -14,7 +14,7 @@ internal sealed class HandlerRegistry
     private readonly Dictionary<Type, Type> _singleHandlers = [];
     private readonly HashSet<Type> _notificationHandlerTypes = [];
     private readonly List<GenericHandler> _genericHandlers = [];
-    private readonly ConcurrentDictionary<Type, ClosedHandler[]> _closedHandlers = new();
+    private readonly ConcurrentDictionary<Type, Type[]> _closedHandlers = new();
     private readonly ConcurrentDictionary<Type, NotificationTarget[]> _notificationTargets = new();
 
     internal static HandlerRegistry GetOrAdd(IServiceCollection services)
@@ -65,7 +65,7 @@ internal sealed class HandlerRegistry
 
         return candidates.Length switch
         {
-            1 => (THandler)candidates[0].Factory(services, null),
+            1 => (THandler)CreateGeneric(services, candidates[0]),
             // Spell out the fix: callers (and coding agents) act on the message without reading the source.
             0 => throw new InvalidOperationException(
                 $"No handler registered for request '{requestType.FullName}'. Expected a non-abstract class implementing " +
@@ -73,7 +73,7 @@ internal sealed class HandlerRegistry
                 "in an assembly scanned by AddAnyMediator: add cfg.RegisterServicesFromAssemblyContaining<T>() with T declared in the handler's assembly."),
             _ => throw new InvalidOperationException(
                 $"Request '{requestType.FullName}' matches more than one generic handler: " +
-                $"{string.Join(", ", candidates.Select(c => $"'{c.Implementation.FullName}'"))}. A request has exactly one handler."),
+                $"{string.Join(", ", candidates.Select(c => $"'{c.FullName}'"))}. A request has exactly one handler."),
         };
     }
 
@@ -105,7 +105,15 @@ internal sealed class HandlerRegistry
         return [.. targets];
     }
 
-    private ClosedHandler[] Close(Type serviceType)
+    /// <summary>
+    /// An instance of a closed generic handler. <c>AddAnyMediator</c> registers each open generic handler as itself, so
+    /// the container creates it and disposes it with its scope; a provider without that registration, such as a test
+    /// double, gets an untracked instance.
+    /// </summary>
+    internal static object CreateGeneric(IServiceProvider services, Type handlerType)
+        => ActivatorUtilities.GetServiceOrCreateInstance(services, handlerType);
+
+    private Type[] Close(Type serviceType)
     {
         if (_genericHandlers.Count == 0)
             return [];
@@ -114,7 +122,6 @@ internal sealed class HandlerRegistry
             .Where(h => h.ServiceInterface.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
             .Select(h => TryClose(h, type))
             .OfType<Type>()
-            .Select(t => new ClosedHandler(t, ActivatorUtilities.CreateFactory(t, Type.EmptyTypes)))
             .ToArray(), _genericHandlers);
     }
 
@@ -183,6 +190,4 @@ internal sealed class HandlerRegistry
     }
 
     private sealed record GenericHandler(Type Implementation, Type ServiceInterface);
-
-    internal sealed record ClosedHandler(Type Implementation, ObjectFactory Factory);
 }

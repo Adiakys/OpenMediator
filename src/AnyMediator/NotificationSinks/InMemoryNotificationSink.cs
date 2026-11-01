@@ -1,3 +1,5 @@
+using AnyMediator.NotificationPublishers;
+
 namespace AnyMediator.NotificationSinks;
 
 internal sealed class InMemoryNotificationSink(IServiceProvider services, HandlerRegistry registry, INotificationPublisher publisher) : INotificationSink
@@ -6,9 +8,12 @@ internal sealed class InMemoryNotificationSink(IServiceProvider services, Handle
     {
         var targets = registry.GetNotificationTargets(notification!.GetType());
 
-        // Only handlers of the notification's own type, the usual case: nothing to deduplicate.
+        // Only handlers of the notification's own type, the usual case: nothing to deduplicate. With the default
+        // strategy and no tracing the handlers are awaited directly, without a delegate per handler.
         if (targets.Length == 1)
-            return publisher.Publish(targets[0].CreateCalls(services, notification, cancellationToken), cancellationToken);
+            return publisher is ForeachAwaitPublisher && !Telemetry.IsEnabled
+                ? targets[0].HandleInOrder(services, notification, cancellationToken)
+                : publisher.Publish(targets[0].CreateCalls(services, notification, cancellationToken), cancellationToken);
 
         // With handlers for base types too, a class that already ran for a more specific type is skipped, so a class
         // handling both OrderPlaced and IDomainEvent runs once; several instances registered for one type all run.

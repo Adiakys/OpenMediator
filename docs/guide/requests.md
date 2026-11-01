@@ -80,4 +80,4 @@ The object must implement `IRequest<TResponse>` for exactly one response type, o
 
 ## Handler lifetime
 
-Handlers are registered as transient. Inject scoped services such as a `DbContext` freely: in ASP.NET Core the handler is resolved from the request scope.
+Handlers are registered as transient. Inject scoped services such as a `DbContext` freely: in ASP.NET Core the handler is resolved from the request scope. Generic handlers too are created by the container, so a handler that implements `IDisposable` or `IAsyncDisposable` is disposed when its scope ends.

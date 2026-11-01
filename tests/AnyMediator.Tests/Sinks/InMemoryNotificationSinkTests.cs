@@ -46,6 +46,32 @@ public sealed class InMemoryNotificationSinkTests
     }
 
     [Fact]
+    public async Task Dispatch_WithForeachAwaitPublisher_RunsHandlersInOrderAndStopsAtTheFirstFailure()
+    {
+        var calls = new List<string>();
+        var first = new Mock<INotificationHandler<TestNotification>>();
+        first.Setup(x => x.Handle(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
+            .Returns(() => { calls.Add("first"); return Task.CompletedTask; });
+        var failing = new Mock<INotificationHandler<TestNotification>>();
+        failing.Setup(x => x.Handle(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
+            .Returns(async () => { await Task.Yield(); calls.Add("failing"); throw new InvalidOperationException("handler failed"); });
+        var last = new Mock<INotificationHandler<TestNotification>>();
+        last.Setup(x => x.Handle(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
+            .Returns(() => { calls.Add("last"); return Task.CompletedTask; });
+
+        var services = new Mock<IServiceProvider>();
+        services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
+            .Returns(new[] { first.Object, failing.Object, last.Object });
+
+        var sink = new InMemoryNotificationSink(services.Object, new HandlerRegistry(), new ForeachAwaitPublisher());
+
+        var act = () => sink.Dispatch(new TestNotification());
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        calls.Should().Equal("first", "failing");
+    }
+
+    [Fact]
     public async Task Dispatch_WithNoHandlers_ShouldNotThrow()
     {
         var services = new Mock<IServiceProvider>();

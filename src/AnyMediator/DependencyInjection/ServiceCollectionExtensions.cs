@@ -70,11 +70,13 @@ public static class ServiceCollectionExtensions
         services.TryAdd(new ServiceDescriptor(typeof(IPublisher), typeof(AnyMediatorPublisher), lifetime));
         services.TryAdd(new ServiceDescriptor(typeof(IMediator), typeof(Mediator), lifetime));
 
-        // Instance overrides Type if both are set; otherwise fall back to the configured Type.
+        // Instance overrides Type if both are set; otherwise fall back to the configured Type. The built-in strategies
+        // hold no state, so one instance serves every Publish.
         if (config.NotificationPublisher is not null)
             services.TryAddSingleton(config.NotificationPublisher);
         else
-            services.TryAdd(new ServiceDescriptor(typeof(INotificationPublisher), config.NotificationPublisherType, lifetime));
+            services.TryAdd(new ServiceDescriptor(typeof(INotificationPublisher), config.NotificationPublisherType,
+                config.NotificationPublisherType.Assembly == typeof(AnyMediatorPublisher).Assembly ? ServiceLifetime.Singleton : lifetime));
 
         services.TryAddEnumerable(ServiceDescriptor.Describe(
             typeof(INotificationSink), typeof(InMemoryNotificationSink), lifetime));
@@ -102,10 +104,12 @@ public static class ServiceCollectionExtensions
                 if (def != typeof(IRequestHandler<,>) && def != typeof(IStreamRequestHandler<,>) && def != typeof(INotificationHandler<>))
                     continue;
 
-                // Open generic handlers are closed when a message is dispatched (see HandlerRegistry).
+                // Open generic handlers are closed when a message is dispatched (see HandlerRegistry). Registered as
+                // themselves, so the container can create AuditHandler<Order> from AuditHandler<> and dispose it.
                 if (type.IsGenericTypeDefinition)
                 {
                     registry.AddGenericHandler(type, iface);
+                    services.TryAddTransient(type);
                 }
                 else if (def == typeof(INotificationHandler<>))
                 {

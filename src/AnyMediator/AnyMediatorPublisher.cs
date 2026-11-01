@@ -8,6 +8,8 @@ internal sealed class AnyMediatorPublisher(IServiceProvider services) : IPublish
 {
     private static readonly ConcurrentDictionary<Type, Func<AnyMediatorPublisher, object, CancellationToken, Task>> ObjectPublishCache = new();
 
+    private INotificationSink[]? _sinks;
+
     public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
     {
         ArgumentNullException.ThrowIfNull(notification);
@@ -29,7 +31,8 @@ internal sealed class AnyMediatorPublisher(IServiceProvider services) : IPublish
         // Every sink runs even if an earlier one fails; the failures reach the caller afterwards, as in MediatR.
         List<Exception>? failures = null;
 
-        foreach (var sink in services.GetAll<INotificationSink>())
+        // Resolved on the first Publish and kept, like any dependency of this instance.
+        foreach (var sink in _sinks ??= services.GetAll<INotificationSink>())
         {
             try
             {

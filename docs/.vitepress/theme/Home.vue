@@ -65,7 +65,7 @@ const exampleNames = Object.keys(examples) as ExampleName[]
 const example = ref<ExampleName>('Program.cs')
 const source = ref<string>(examples['Program.cs'])
 const editing = ref(false)
-const rules = reactive({ namespace: true, registration: true, licenseKey: true, constraint: true })
+const rules = reactive({ namespace: true, registration: true, licenseKey: true })
 
 function pickExample(name: ExampleName) {
   example.value = name
@@ -81,10 +81,6 @@ const converted = computed(() => {
   let changed = 0
   let usingEmitted = false
 
-  // Generic behaviors repeat MediatR's `where TRequest : notnull`; AnyMediator needs the request constraint.
-  const behaviorArgs = [...source.value.matchAll(/I(Stream)?PipelineBehavior<\s*(\w+)\s*,\s*(\w+)\s*>/g)]
-    .map(m => ({ stream: !!m[1], request: m[2], response: m[3] }))
-
   for (const line of lines) {
     let next: string | null = line
 
@@ -97,15 +93,6 @@ const converted = computed(() => {
     }
     if (next !== null && rules.registration) next = next.replace(/\bAdd(Open)?MediatR\s*\(/g, 'AddAnyMediator(').replace(/\bOpenMediatRConfiguration\b/g, 'AnyMediatorConfiguration')
     if (next !== null && rules.licenseKey && /\bLicenseKey\s*=/.test(next)) next = null
-    if (next !== null && rules.constraint) {
-      for (const b of behaviorArgs) {
-        const re = new RegExp(`\\bwhere\\s+${b.request}\\s*:\\s*notnull\\b`)
-        if (re.test(next)) {
-          const target = b.stream ? `IStreamRequest<${b.response}>` : `IRequest<${b.response}>`
-          next = next.replace(re, `where ${b.request} : ${target}`)
-        }
-      }
-    }
 
     if (next === line) {
       rows.push({ kind: 'same', text: line })
@@ -116,13 +103,7 @@ const converted = computed(() => {
     }
   }
 
-  const notes: string[] = []
-  if (/\.Publish\s*\(/.test(source.value))
-    notes.push('Publish logs a failing handler instead of re-throwing it.')
-  if (/\.Send\s*\(\s*\(object\)/.test(source.value) || /\bSend\s*\(\s*object\b/.test(source.value))
-    notes.push('Send(object) is not available: use the generic Send.')
-
-  return { rows, changed, notes }
+  return { rows, changed }
 })
 
 const resultText = computed(() =>
@@ -326,18 +307,13 @@ onBeforeUnmount(() => observer?.disconnect())
             <span>License key</span>
             <input v-model="rules.licenseKey" type="checkbox" class="om-switch">
           </label>
-          <label class="om-ctl">
-            <span>Behavior constraint</span>
-            <input v-model="rules.constraint" type="checkbox" class="om-switch">
-          </label>
           <div class="om-ctl om-ctl-value">
             <span>Lines changed</span>
             <strong>{{ converted.changed }}</strong>
           </div>
-          <div class="om-ctl om-ctl-notes" aria-live="polite">
-            <span v-if="converted.notes.length === 0">Nothing else to review.</span>
-            <span v-for="n in converted.notes" :key="n">{{ n }}</span>
-          </div>
+          <p class="om-ctl om-ctl-notes">
+            Behaviors, handlers, Send(object) and Publish work as in MediatR.
+          </p>
           <button class="om-ctl om-edit" type="button" @click="editing = !editing">
             {{ editing ? 'Show the result' : 'Paste your own code' }}
           </button>
@@ -709,6 +685,7 @@ info : PackageReference for package 'AnyMediator' version '2.0.0' added to file 
 .om-ctl-value { cursor: default; }
 .om-ctl-value strong { font-size: var(--om-step-lead); font-weight: 500; font-variant-numeric: tabular-nums; }
 .om-ctl-notes {
+  margin: 0;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;

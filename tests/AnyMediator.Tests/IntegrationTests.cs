@@ -1,7 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AnyMediator.Tests;
 
@@ -10,8 +8,6 @@ public sealed class IntegrationTests
     private static ServiceProvider BuildProvider(Action<AnyMediatorConfiguration>? configure = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddAnyMediator(configure ?? (cfg =>
         {
             cfg.RegisterServicesFromAssemblyContaining<IntegrationTests>();

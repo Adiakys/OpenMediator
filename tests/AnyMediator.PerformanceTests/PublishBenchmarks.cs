@@ -1,8 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AnyMediator.PerformanceTests;
 
@@ -40,8 +38,6 @@ public class PublishBenchmarks
     private static IPublisher BuildPublisher(params Type[] handlerTypes)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddAnyMediator(cfg =>
             cfg.RegisterServicesFromAssemblyContaining<BenchmarkRequest>());
 

@@ -14,7 +14,7 @@ public sealed class StreamSenderTests
         services.Setup(x => x.GetService(typeof(IStreamRequestHandler<TestStreamRequest, int>)))
             .Returns(handler);
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var values = new List<int>();
         await foreach (var value in sender.CreateStream(new TestStreamRequest(3)))
@@ -38,7 +38,7 @@ public sealed class StreamSenderTests
         services.Setup(x => x.GetService(pipelineServiceType))
             .Returns(new List<IStreamPipelineBehavior<TestStreamRequest, int>> { pipeline1, pipeline2 });
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var values = new List<int>();
         await foreach (var value in sender.CreateStream(new TestStreamRequest(2)))
@@ -55,12 +55,12 @@ public sealed class StreamSenderTests
         using var cts = new CancellationTokenSource();
         var handler = new CapturingStreamHandler();
         var services = new Mock<IServiceProvider>();
-        services.Setup(x => x.GetService(typeof(IStreamRequestHandler<TestStreamRequest, int>)))
+        services.Setup(x => x.GetService(typeof(IStreamRequestHandler<CapturingStreamRequest, int>)))
             .Returns(handler);
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
-        await foreach (var _ in sender.CreateStream(new TestStreamRequest(1), cts.Token)) { }
+        await foreach (var _ in sender.CreateStream(new CapturingStreamRequest(), cts.Token)) { }
 
         handler.ReceivedToken.Should().Be(cts.Token);
     }
@@ -70,14 +70,14 @@ public sealed class StreamSenderTests
     {
         var expected = new InvalidOperationException("stream failed");
         var services = new Mock<IServiceProvider>();
-        services.Setup(x => x.GetService(typeof(IStreamRequestHandler<TestStreamRequest, int>)))
+        services.Setup(x => x.GetService(typeof(IStreamRequestHandler<ThrowingStreamRequest, int>)))
             .Returns(new ThrowingStreamHandler(expected));
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var act = async () =>
         {
-            await foreach (var _ in sender.CreateStream(new TestStreamRequest(3))) { }
+            await foreach (var _ in sender.CreateStream(new ThrowingStreamRequest())) { }
         };
 
         (await act.Should().ThrowAsync<InvalidOperationException>())
@@ -93,7 +93,7 @@ public sealed class StreamSenderTests
         services.Setup(x => x.GetService(typeof(IStreamRequestHandler<TestStreamRequest, int>)))
             .Returns(handler);
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var values = new List<int>();
         var act = async () =>
@@ -117,7 +117,7 @@ public sealed class StreamSenderTests
         services.Setup(x => x.GetService(typeof(IStreamRequestHandler<TestStreamRequest, int>)))
             .Returns(handler);
 
-        var sender = new AnyMediatorSender(services.Object);
+        ISender sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
         object request = new TestStreamRequest(3);
 
         var values = new List<object?>();
@@ -131,7 +131,7 @@ public sealed class StreamSenderTests
     public async Task CreateStream_ObjectOverload_WhenRequestIsNotIStreamRequest_Throws()
     {
         var services = new Mock<IServiceProvider>();
-        var sender = new AnyMediatorSender(services.Object);
+        ISender sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var act = async () =>
         {
@@ -145,7 +145,7 @@ public sealed class StreamSenderTests
     public async Task CreateStream_ObjectOverload_WhenRequestIsNull_Throws()
     {
         var services = new Mock<IServiceProvider>();
-        var sender = new AnyMediatorSender(services.Object);
+        ISender sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var act = async () =>
         {
@@ -155,11 +155,16 @@ public sealed class StreamSenderTests
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
-    private sealed class CapturingStreamHandler : IStreamRequestHandler<TestStreamRequest, int>
+    // Each test double handles a request type of its own: a request type has exactly one handler in a scanned assembly.
+    private sealed record CapturingStreamRequest : IStreamRequest<int>;
+
+    private sealed record ThrowingStreamRequest : IStreamRequest<int>;
+
+    private sealed class CapturingStreamHandler : IStreamRequestHandler<CapturingStreamRequest, int>
     {
         public CancellationToken ReceivedToken { get; private set; }
 
-        public async IAsyncEnumerable<int> Handle(TestStreamRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<int> Handle(CapturingStreamRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             ReceivedToken = cancellationToken;
             yield return 0;
@@ -167,12 +172,12 @@ public sealed class StreamSenderTests
         }
     }
 
-    private sealed class ThrowingStreamHandler : IStreamRequestHandler<TestStreamRequest, int>
+    private sealed class ThrowingStreamHandler : IStreamRequestHandler<ThrowingStreamRequest, int>
     {
         private readonly Exception _exception;
         public ThrowingStreamHandler(Exception exception) => _exception = exception;
 
-        public async IAsyncEnumerable<int> Handle(TestStreamRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<int> Handle(ThrowingStreamRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             await Task.CompletedTask;
             if (_exception is not null) throw _exception;

@@ -3,7 +3,7 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>2.0.0</Version>
+        <Version>2.1.0</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
         <Description>AnyMediator (formerly OpenMediatR) is a free, open-source (Apache-2.0) in-process mediator for .NET and a MediatR alternative with a MediatR-compatible API: requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions and pluggable notification sinks. Independent project, not affiliated with or endorsed by MediatR or Lucky Penny Software.</Description>
@@ -12,9 +12,14 @@
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReleaseNotes>
-2.0.0:
-- OpenMediatR is now AnyMediator. Package IDs, namespace and type names change: replace the OpenMediatR package with AnyMediator, using OpenMediatR; with using AnyMediator;, AddOpenMediatR with AddAnyMediator and OpenMediatRConfiguration with AnyMediatorConfiguration. Behavior is the same as OpenMediatR 1.5.0.
-- Documentation: https://adiakys.github.io/AnyMediator/
+2.1.0: MediatR compatibility. Changes from 2.0.0 that need attention are marked "Breaking"; 2.0.0 was published the day before and had no downloads.
+- Breaking: Publish re-throws handler and sink failures, as MediatR does. Every sink still runs; one failure is re-thrown as is, several as an AggregateException. The dependency on Microsoft.Extensions.Logging.Abstractions is removed.
+- Breaking: two handlers for the same request make AddAnyMediator throw an InvalidOperationException naming both classes. Before, the first one found was used silently.
+- Breaking: ISender gains Send(object) and IPublisher gains Publish(object), as in MediatR. Classes that implement these interfaces by hand must add them.
+- Handlers for a base class or interface of a notification also receive it (INotificationHandler&lt;IDomainEvent&gt; runs for every IDomainEvent). A handler class runs once per Publish.
+- Open generic request and notification handlers are found by scanning and closed when a message is dispatched, e.g. GetByIdHandler&lt;T&gt; : IRequestHandler&lt;GetById&lt;T&gt;, T&gt;.
+- IPipelineBehavior and IStreamPipelineBehavior constrain TRequest to notnull, as MediatR does, so behaviors written for MediatR compile unchanged.
+- cfg.TypeEvaluator filters the types registered by scanning, as in MediatR.
         </PackageReleaseNotes>
         <PackageTags>mediator;anymediator;openmediatr;mediatr;mediatr-alternative;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source;apache-2.0</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>

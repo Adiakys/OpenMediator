@@ -55,36 +55,32 @@ Everything lives in the single `AnyMediator` namespace, including the pre/post-p
 |------|---------|-------------|
 | License | Commercial license from v13 | Apache-2.0, free for any use |
 | `LicenseKey` | Required for commercial use | Does not exist: remove it |
-| Behavior constraint | `where TRequest : notnull` | `where TRequest : IRequest<TResponse>` |
-| Stream behavior constraint | `where TRequest : notnull` | `where TRequest : IStreamRequest<TResponse>` |
-| `Publish` when a handler throws | The exception reaches the caller | The exception is logged and not re-thrown |
-| `Send(object)` and `Publish(object)` | Available | Not available: use the generic overloads |
+| Two handlers for one request | The first one found is used | `AddAnyMediator` throws and names both classes |
+| `Publish` with several sinks failing | — | Every sink runs, then an `AggregateException` with every failure |
 | Notification delivery | In-process handlers | In-process handlers, plus any [notification sink](./notification-sinks) you add |
 
-### Behavior constraints
+Interfaces, method shapes, `Send(object)`, `Publish(object)`, behavior constraints, handlers for base notification types, generic handlers and exceptions from `Publish` work as in MediatR.
 
-A generic behavior written for MediatR declares `where TRequest : notnull`. In AnyMediator, `IPipelineBehavior<TRequest, TResponse>` requires `TRequest : IRequest<TResponse>`, so the compiler reports CS0314 until you change the constraint:
+### Two handlers for one request
 
-```diff
-  public sealed class LoggingBehavior<TRequest, TResponse>
-      : IPipelineBehavior<TRequest, TResponse>
--     where TRequest : notnull
-+     where TRequest : IRequest<TResponse>
-```
-
-### Publish no longer throws
-
-`IPublisher.Publish` sends a notification to every registered [notification sink](./notification-sinks). If a sink fails, which includes a failing handler in the default in-memory sink, the exception is logged through `ILogger` and the remaining sinks still run. The call to `Publish` completes normally.
-
-Review code that catches exceptions around `Publish`. If the caller must know that a step failed, make that step a request and use `Send`, which propagates exceptions.
+If scanning finds two classes that handle the same request, `AddAnyMediator` stops with an `InvalidOperationException` naming both. A test double in a scanned assembly is the usual cause: give it a request type of its own, or leave it out with `cfg.TypeEvaluator`.
 
 ## Checklist
 
 1. Replace the package and the namespace.
 2. Replace `AddMediatR` with `AddAnyMediator` and remove `LicenseKey`.
-3. Fix behavior constraints until the project builds.
-4. Search for `Publish(` and review error handling around it.
-5. Run your tests.
+3. Start the application: fix any request reported as having two handlers.
+4. Run your tests.
+
+## Upgrading from AnyMediator 2.0
+
+AnyMediator 2.1 brings AnyMediator in line with MediatR. Review the first four changes before upgrading:
+
+- **`Publish` re-throws handler failures.** In 2.0 a failing handler was logged and `Publish` completed normally. AnyMediator no longer depends on `Microsoft.Extensions.Logging.Abstractions`.
+- **Two handlers for one request is a startup error.** In 2.0 the first one found was used silently.
+- **`ISender` and `IPublisher` gain `Send(object)` and `Publish(object)`.** A class that implements them by hand, such as a decorator or a test fake, must add the two methods; mocks created by a mocking library are unaffected.
+- **Handlers for base notification types run.** A handler for `INotificationHandler<IDomainEvent>` now also receives `OrderPlaced : IDomainEvent`.
+- New: generic request and notification handlers, `cfg.TypeEvaluator`, and the `notnull` behavior constraint, so behaviors written for MediatR compile unchanged.
 
 ## Upgrading from OpenMediatR
 

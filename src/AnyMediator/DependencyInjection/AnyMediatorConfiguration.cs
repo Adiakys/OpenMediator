@@ -17,6 +17,12 @@ public sealed partial class AnyMediatorConfiguration
     internal List<ServiceDescriptor> RequestExceptionHandlersToRegister { get; } = [];
     internal List<ServiceDescriptor> RequestExceptionActionsToRegister { get; } = [];
 
+    /// <summary>
+    /// Decides which scanned types are registered: return <see langword="false"/> to leave a type out, for example a
+    /// handler that only a test project should use. Default: every type. Same name and role as in MediatR.
+    /// </summary>
+    public Func<Type, bool> TypeEvaluator { get; set; } = _ => true;
+
     /// <summary>Default lifetime for handlers, processors, and behaviors that don't specify one.</summary>
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Transient;
 

@@ -70,6 +70,23 @@ post-processors, then pre-processors       innermost, next to the handler
 
 ## Constraint
 
-Constrain the request type parameter to `IRequest<TResponse>`, as in the example above. Behaviors written for MediatR use `where TRequest : notnull` and need this change (see [Migrating from MediatR](./migrating-from-mediatr#behavior-constraints)).
+`IPipelineBehavior<TRequest, TResponse>` constrains `TRequest` to `notnull`, as MediatR does, so behaviors written for MediatR compile unchanged. A behavior can narrow the constraint, to `IRequest<TResponse>` as in the example above or to a marker interface of your own; the container then applies it only to the requests that satisfy it:
+
+```csharp
+public interface ITransactional;
+
+public sealed class TransactionBehavior<TRequest, TResponse>(AppDbContext db)
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : ITransactional
+{
+    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var response = await next(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return response;
+    }
+}
+```
 
 An open generic behavior must have the same two type parameters as `IPipelineBehavior<TRequest, TResponse>`, because the container closes it for each request. To target a single request type, write a closed behavior and register it with `AddBehavior<T>()`.

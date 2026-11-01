@@ -1,7 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using AnyMediator.NotificationPublishers;
 using AnyMediator.NotificationSinks;
 using AnyMediator.RequestProcessors;
@@ -13,8 +11,6 @@ public sealed class DependencyInjectionTests
     private static IServiceCollection CreateServices(Action<AnyMediatorConfiguration>? configure = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddAnyMediator(configure ?? (cfg =>
         {
             cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
@@ -164,8 +160,6 @@ public sealed class DependencyInjectionTests
     public void AddAnyMediator_WithNoAssemblies_DoesNotThrowAndRegistersCoreServices()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
         var act = () => services.AddAnyMediator(_ => { });
 
@@ -268,8 +262,6 @@ public sealed class DependencyInjectionTests
     public void AddRequestExceptionHandler_RegistersHandlerAndWrapperBehavior()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddAnyMediator(cfg => cfg.AddRequestExceptionHandler<TestExceptionHandler>());
 
         services.Should().Contain(x =>
@@ -284,8 +276,6 @@ public sealed class DependencyInjectionTests
     public void AddRequestExceptionAction_RegistersActionAndWrapperBehavior()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddAnyMediator(cfg => cfg.AddRequestExceptionAction<TestExceptionAction>());
 
         services.Should().Contain(x =>
@@ -374,8 +364,6 @@ public sealed class DependencyInjectionTests
     public void AddAnyMediator_CalledTwice_ShouldNotDuplicateScannedHandlersAndProcessors()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
         Action<AnyMediatorConfiguration> configure = cfg =>
         {
@@ -411,8 +399,6 @@ public sealed class DependencyInjectionTests
     public void AddAnyMediator_CalledTwice_ShouldNotDuplicateUserBehaviors()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
         Action<AnyMediatorConfiguration> configure = cfg =>
         {
@@ -439,8 +425,6 @@ public sealed class DependencyInjectionTests
     public void AddAnyMediator_CalledTwice_ShouldNotDuplicateCoreServices()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
         services.AddAnyMediator(cfg =>
         {

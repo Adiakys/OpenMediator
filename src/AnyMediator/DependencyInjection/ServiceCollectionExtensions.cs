@@ -34,9 +34,10 @@ public static class ServiceCollectionExtensions
         var config = new AnyMediatorConfiguration();
         configure(config);
 
-        var candidateTypes = ScanCandidateTypes(config);
+        var scannedTypes = ScanTypes(config);
+        var candidateTypes = scannedTypes.Where(t => !t.IsGenericTypeDefinition).ToArray();
 
-        RegisterHandlers(services, candidateTypes);
+        RegisterHandlers(services, HandlerRegistry.GetOrAdd(services), scannedTypes);
 
         // The pipeline runs behaviors in registration order: the first registered is the outermost.
         // Exception handler/action wrappers go first so they catch exceptions thrown anywhere in the
@@ -69,30 +70,44 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static IReadOnlyList<Type> ScanCandidateTypes(AnyMediatorConfiguration config)
+    private static IReadOnlyList<Type> ScanTypes(AnyMediatorConfiguration config)
     {
         return config.AssembliesToRegister
             .Distinct()
             .SelectMany(a => a.GetTypes())
-            .Where(t => t.IsClass && !t.IsAbstract && !t.IsGenericTypeDefinition)
+            .Where(t => t.IsClass && !t.IsAbstract && config.TypeEvaluator(t))
             .ToArray();
     }
 
-    private static void RegisterHandlers(IServiceCollection services, IReadOnlyList<Type> candidateTypes)
+    private static void RegisterHandlers(IServiceCollection services, HandlerRegistry registry, IReadOnlyList<Type> scannedTypes)
     {
-        foreach (var type in candidateTypes)
+        foreach (var type in scannedTypes)
         {
             foreach (var iface in type.GetInterfaces())
             {
                 if (!iface.IsGenericType) continue;
                 var def = iface.GetGenericTypeDefinition();
 
-                if (def == typeof(IRequestHandler<,>))
-                    services.TryAddTransient(iface, type);
-                else if (def == typeof(IStreamRequestHandler<,>))
-                    services.TryAddTransient(iface, type);
-                else if (def == typeof(INotificationHandler<>))
+                if (def != typeof(IRequestHandler<,>) && def != typeof(IStreamRequestHandler<,>) && def != typeof(INotificationHandler<>))
+                    continue;
+
+                // Open generic handlers are closed when a message is dispatched (see HandlerRegistry).
+                if (type.IsGenericTypeDefinition)
+                {
+                    registry.AddGenericHandler(type, iface);
+                    continue;
+                }
+
+                if (def == typeof(INotificationHandler<>))
+                {
+                    registry.AddNotificationHandler(iface);
                     services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
+                }
+                else
+                {
+                    registry.AddSingleHandler(iface, type);
+                    services.TryAddTransient(iface, type);
+                }
             }
         }
     }

@@ -61,7 +61,7 @@ public class UserController(ISender sender)
 }
 ```
 
-Each request type must have exactly one handler. If no handler is registered, `Send` throws.
+Each request type must have exactly one handler. If no handler is registered, `Send` throws; if scanning finds two, `AddAnyMediator` throws and names both classes.
 
 For commands that return no value, use `IRequest` (without type parameter):
 
@@ -305,7 +305,7 @@ Register it in DI:
 services.AddSingleton<INotificationSink, WebhookNotificationSink>();
 ```
 
-The publisher fans out to all registered sinks sequentially. If a sink throws, the exception is logged and remaining sinks still execute.
+The publisher fans out to all registered sinks sequentially. If a sink throws, the remaining sinks still run; then the exception reaches the caller of `Publish` (an `AggregateException` when several sinks failed).
 
 ## IMediator
 
@@ -379,7 +379,7 @@ services.AddAnyMediator(cfg =>
    });
    ```
 
-Requests, notifications, handlers, processors and exception handlers/actions compile unchanged once the namespace is updated. Pipeline behaviors may need the generic constraint shown below.
+Requests, notifications, handlers, pipeline behaviors, processors and exception handlers/actions compile unchanged once the namespace is updated.
 
 ### Differences to check
 
@@ -387,12 +387,10 @@ Requests, notifications, handlers, processors and exception handlers/actions com
 |------|---------|-------------|
 | License | Commercial license from v13 | Apache-2.0, free for any use |
 | `LicenseKey` | Required for commercial use | Not needed: remove it |
-| `Publish` with a failing handler | Exception propagates to the caller | Exception is logged per sink and **not** re-thrown (see [Notification Sinks](#notification-sinks)) |
-| `Send(object)` / `Publish(object)` | Supported | Not available: use the generic overloads |
-| Behavior constraint | `where TRequest : notnull` | `where TRequest : IRequest<TResponse>` (streams: `IStreamRequest<TResponse>`): update the `where` clause of your behaviors |
+| Two handlers for one request | The first one found is used | `AddAnyMediator` throws and names both classes |
 | Notification delivery | In-process handlers | In-process handlers plus custom `INotificationSink` channels |
 
-Review any code that relies on `Publish` throwing when a notification handler fails.
+`Send(object)`, `Publish(object)`, `where TRequest : notnull` behaviors, handlers for base notification types, generic handlers, `cfg.TypeEvaluator` and exceptions from `Publish` work as in MediatR.
 
 ## Upgrading from OpenMediatR
 

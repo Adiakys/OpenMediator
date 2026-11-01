@@ -46,10 +46,37 @@ Internally the response type is `Unit`, a value that carries no information. Pip
 
 ## Rules
 
-- Each request type has exactly one handler. Assembly scanning keeps the first one it finds.
+- Each request type has exactly one handler. If scanning finds two, `AddAnyMediator` throws an `InvalidOperationException` that names both classes; remove one, or leave it out of scanning with `cfg.TypeEvaluator`.
 - If no handler is registered, `Send` throws `InvalidOperationException` with the request type and the interface to implement.
 - Exceptions thrown by the handler reach the caller with their original stack trace, unless an [exception handler](./exception-handling) recovers.
 - The `CancellationToken` passed to `Send` reaches every behavior, processor and the handler.
+
+## Generic handlers
+
+An open generic handler is found by scanning and closed for each request it matches:
+
+```csharp
+public sealed record GetById<TEntity>(int Id) : IRequest<TEntity?> where TEntity : class;
+
+public sealed class GetByIdHandler<TEntity>(AppDbContext db) : IRequestHandler<GetById<TEntity>, TEntity?>
+    where TEntity : class
+{
+    public async Task<TEntity?> Handle(GetById<TEntity> request, CancellationToken cancellationToken)
+        => await db.Set<TEntity>().FindAsync([request.Id], cancellationToken);
+}
+```
+
+A handler registered for the exact request type takes precedence over a generic one.
+
+## Sending an object
+
+When the request's type is only known at runtime, pass it as `object`. The response comes back boxed, and is `Unit.Value` for a request without a response:
+
+```csharp
+object? response = await sender.Send(command, cancellationToken);
+```
+
+The object must implement `IRequest<TResponse>` for exactly one response type, otherwise an `ArgumentException` is thrown.
 
 ## Handler lifetime
 

@@ -1,7 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AnyMediator.Tests;
 
@@ -13,8 +11,6 @@ public sealed class PipelineOrderTests
         TestExceptionRecoveryResponse? recovery = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(trace);
         if (recovery is not null) services.AddSingleton(recovery);
         services.AddAnyMediator(configure);

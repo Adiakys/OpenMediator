@@ -9,13 +9,16 @@ internal sealed class AnyMediatorSender : ISender
 {
     private static readonly ConcurrentDictionary<(Type RequestType, Type ResponseType), RequestMetadata> RequestMetadataCache = new();
     private static readonly ConcurrentDictionary<(Type RequestType, Type ResponseType), StreamRequestMetadata> StreamMetadataCache = new();
-    private static readonly ConcurrentDictionary<Type, Func<AnyMediatorSender, object, CancellationToken, IAsyncEnumerable<object?>>> StreamObjectDispatchCache = new();
+    private static readonly ConcurrentDictionary<Type, Func<AnyMediatorSender, object, CancellationToken, Task<object?>>> ObjectSendCache = new();
+    private static readonly ConcurrentDictionary<Type, Func<AnyMediatorSender, object, CancellationToken, IAsyncEnumerable<object?>>> ObjectStreamCache = new();
 
     private readonly IServiceProvider _services;
+    private readonly HandlerRegistry _registry;
 
-    public AnyMediatorSender(IServiceProvider services)
+    public AnyMediatorSender(IServiceProvider services, HandlerRegistry registry)
     {
         _services = services;
+        _registry = registry;
     }
 
     public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
@@ -34,20 +37,31 @@ internal sealed class AnyMediatorSender : ISender
         return next(cancellationToken);
     }
 
+    public Task<object?> Send(object request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var send = ObjectSendCache.GetOrAdd(request.GetType(), static type =>
+            BindToResponseType<Func<AnyMediatorSender, object, CancellationToken, Task<object?>>>(
+                nameof(SendBoxed), ResponseType(type, typeof(IRequest<>), requireSingle: true)));
+        return send(this, request, cancellationToken);
+    }
+
     public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var dispatcher = StreamObjectDispatchCache.GetOrAdd(request.GetType(), BuildStreamObjectDispatcher);
-        return dispatcher(this, request, cancellationToken);
+        var createStream = ObjectStreamCache.GetOrAdd(request.GetType(), static type =>
+            BindToResponseType<Func<AnyMediatorSender, object, CancellationToken, IAsyncEnumerable<object?>>>(
+                nameof(CreateStreamBoxed), ResponseType(type, typeof(IStreamRequest<>), requireSingle: false)));
+        return createStream(this, request, cancellationToken);
     }
 
     private Task<TResponse> Handle<TResponse>(IRequest<TResponse> request, RequestMetadata metadata, CancellationToken cancellationToken)
     {
         try
         {
-            var handler = _services.GetService(metadata.HandlerType)
-                ?? throw HandlerNotFound(request.GetType(), metadata.HandlerType);
+            var handler = GetRequiredHandler(metadata.HandlerType, request.GetType());
             return (metadata.HandlerMethod.Invoke(handler, [request, cancellationToken]) as Task<TResponse>)!;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
@@ -61,8 +75,7 @@ internal sealed class AnyMediatorSender : ISender
     {
         try
         {
-            var handler = _services.GetService(metadata.HandlerType)
-                ?? throw HandlerNotFound(request.GetType(), metadata.HandlerType);
+            var handler = GetRequiredHandler(metadata.HandlerType, request.GetType());
             return (metadata.HandlerMethod.Invoke(handler, [request, cancellationToken]) as IAsyncEnumerable<TResponse>)!;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
@@ -72,13 +85,14 @@ internal sealed class AnyMediatorSender : ISender
         }
     }
 
-    private static InvalidOperationException HandlerNotFound(Type requestType, Type handlerType)
+    private object GetRequiredHandler(Type handlerType, Type requestType)
     {
-        // Spell out the fix: callers (and coding agents) act on the message without reading the source.
-        return new InvalidOperationException(
-            $"No handler registered for request '{requestType.FullName}'. Expected a non-abstract class implementing " +
-            $"{handlerType.GetGenericTypeDefinition().Name.Split('`')[0]}<{string.Join(", ", handlerType.GetGenericArguments().Select(t => t.Name))}> " +
-            "in an assembly scanned by AddAnyMediator: add cfg.RegisterServicesFromAssemblyContaining<T>() with T declared in the handler's assembly.");
+        return _registry.ResolveSingle(_services, handlerType)
+            // Spell out the fix: callers (and coding agents) act on the message without reading the source.
+            ?? throw new InvalidOperationException(
+                $"No handler registered for request '{requestType.FullName}'. Expected a non-abstract class implementing " +
+                $"{handlerType.GetGenericTypeDefinition().Name.Split('`')[0]}<{string.Join(", ", handlerType.GetGenericArguments().Select(t => t.Name))}> " +
+                "in an assembly scanned by AddAnyMediator: add cfg.RegisterServicesFromAssemblyContaining<T>() with T declared in the handler's assembly.");
     }
 
     private RequestHandlerDelegate<TResponse> ConfigurePipeline<TResponse>(
@@ -171,32 +185,43 @@ internal sealed class AnyMediatorSender : ISender
         });
     }
 
-    private static Func<AnyMediatorSender, object, CancellationToken, IAsyncEnumerable<object?>> BuildStreamObjectDispatcher(Type requestType)
+    /// <summary>
+    /// The <c>TResponse</c> of the closed <paramref name="openInterface"/> a request implements. With several, a request is
+    /// ambiguous and throws; a stream request keeps the first, as it always has.
+    /// </summary>
+    private static Type ResponseType(Type requestType, Type openInterface, bool requireSingle)
     {
-        var streamRequestInterface = requestType.GetInterfaces()
-            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStreamRequest<>))
-            ?? throw new ArgumentException(
-                $"{requestType.Name} does not implement {typeof(IStreamRequest<>).Name}.", nameof(requestType));
+        var responseTypes = requestType.GetInterfaces()
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == openInterface)
+            .Select(i => i.GetGenericArguments()[0])
+            .ToArray();
 
-        var responseType = streamRequestInterface.GetGenericArguments()[0];
+        var interfaceName = openInterface.Name.Split('`')[0];
 
-        var typedCreateStream = typeof(AnyMediatorSender)
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-            .First(m => m.Name == nameof(CreateStream) && m.IsGenericMethod)
-            .MakeGenericMethod(responseType);
+        if (responseTypes.Length == 0)
+            throw new ArgumentException($"{requestType.FullName} does not implement {interfaceName}<TResponse>.", "request");
 
-        var boxMethod = typeof(AnyMediatorSender)
-            .GetMethod(nameof(BoxStream), BindingFlags.Static | BindingFlags.NonPublic)!
-            .MakeGenericMethod(responseType);
+        if (requireSingle && responseTypes.Length > 1)
+            throw new ArgumentException(
+                $"{requestType.FullName} implements {interfaceName}<TResponse> for more than one response type " +
+                $"({string.Join(", ", responseTypes.Select(t => t.Name))}): call the generic overload with the one you want.", "request");
 
-        return (sender, req, ct) =>
-        {
-            var typedStream = typedCreateStream.Invoke(sender, [req, ct])!;
-            return (IAsyncEnumerable<object?>)boxMethod.Invoke(null, [typedStream, ct])!;
-        };
+        return responseTypes[0];
     }
 
-    private static async IAsyncEnumerable<object?> BoxStream<T>(IAsyncEnumerable<T> source, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private static TDelegate BindToResponseType<TDelegate>(string methodName, Type responseType) where TDelegate : Delegate
+        => typeof(AnyMediatorSender)
+            .GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic)!
+            .MakeGenericMethod(responseType)
+            .CreateDelegate<TDelegate>();
+
+    private static async Task<object?> SendBoxed<TResponse>(AnyMediatorSender sender, object request, CancellationToken cancellationToken)
+        => await sender.Send((IRequest<TResponse>)request, cancellationToken);
+
+    private static IAsyncEnumerable<object?> CreateStreamBoxed<TResponse>(AnyMediatorSender sender, object request, CancellationToken cancellationToken)
+        => Box(sender.CreateStream((IStreamRequest<TResponse>)request, cancellationToken), cancellationToken);
+
+    private static async IAsyncEnumerable<object?> Box<T>(IAsyncEnumerable<T> source, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await foreach (var item in source.WithCancellation(cancellationToken))
             yield return item;

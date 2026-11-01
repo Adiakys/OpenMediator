@@ -393,17 +393,7 @@ services.AddAnyMediator(cfg =>
 
 Requests, notifications, handlers, pipeline behaviors, processors and exception handlers/actions compile unchanged once the namespace is updated.
 
-### Differences to check
-
-| Area | MediatR | AnyMediator |
-|------|---------|-------------|
-| License | RPL-1.5 or commercial from v13 | Apache-2.0, free for any use |
-| `LicenseKey` | Needed under the commercial license; without it, a warning is logged | Not needed: remove it |
-| Two handlers for one request | The first one found is used | `AddAnyMediator` throws and names both classes |
-| Notification delivery | In-process handlers | In-process handlers plus custom `INotificationSink` channels |
-| Custom `INotificationPublisher` | `Publish(IEnumerable<NotificationHandlerExecutor>, INotification, CancellationToken)` | `Publish(IEnumerable<Func<Task>>, CancellationToken)`: each delegate runs one handler |
-
-`Send(object)`, `Publish(object)`, `where TRequest : notnull` behaviors, handlers for base notification types, generic handlers, `cfg.TypeEvaluator` and exceptions from `Publish` work as in MediatR.
+Then check the few [differences from MediatR](https://adiakys.github.io/AnyMediator/guide/migrating-from-mediatr#differences-to-check): mainly, two handlers for one request are a startup error, and a custom `INotificationPublisher` has a simpler signature.
 
 Comparing options? See [MediatR alternatives compared](https://adiakys.github.io/AnyMediator/guide/mediatr-alternatives): AnyMediator, MediatR, Mediator, LiteBus, Wolverine and FreeMediator side by side.
 

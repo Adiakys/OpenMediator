@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      indexnow: ${{ steps.indexnow.outputs.request }}
     defaults:
       run:
         working-directory: docs
@@ -40,6 +42,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Read the IndexNow request
+        id: indexnow
+        run: echo "request=$(cat .vitepress/indexnow.json)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
@@ -56,21 +62,11 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # Tells Bing and the other IndexNow engines (which also feed ChatGPT search and Copilot) that the pages changed.
-  # The key is public by design: the engines check it against the file of the same name on the site.
-  indexnow:
-    needs: deploy
-    runs-on: ubuntu-latest
-    env:
-      SITE: https://adiakys.github.io/AnyMediator/
-      KEY: 476ce3b0ed7ad3a75056b918ccf6c4fb
-
-    steps:
-      - name: Submit the sitemap URLs to IndexNow
+      # Tells Bing and the other IndexNow engines (which also feed ChatGPT search and Copilot) that the pages changed.
+      - name: Submit the pages to IndexNow
         continue-on-error: true
-        run: |
-          urls=$(curl -fsSL "${SITE}sitemap.xml" | grep -o '<loc>[^<]*</loc>' | sed -e 's/<loc>//' -e 's#</loc>##' | jq -R . | jq -s .)
-          jq -n --argjson urls "$urls" --arg key "$KEY" --arg site "$SITE" \
-            '{host: "adiakys.github.io", key: $key, keyLocation: ($site + $key + ".txt"), urlList: $urls}' \
-            | curl -sS -X POST https://api.indexnow.org/indexnow \
-                -H 'Content-Type: application/json; charset=utf-8' -d @- -w 'IndexNow: HTTP %{http_code}\n'
+        env:
+          REQUEST: ${{ needs.build.outputs.indexnow }}
+        run: >
+          curl -sS -X POST https://api.indexnow.org/indexnow -H 'Content-Type: application/json; charset=utf-8'
+          -d "$REQUEST" -w 'IndexNow: HTTP %{http_code}\n'

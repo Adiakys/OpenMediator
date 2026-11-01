@@ -12,7 +12,7 @@ AnyMediator keeps MediatR's type names, method names and configuration API. Most
 
 ## Why migrate
 
-From version 13, MediatR is dual licensed: the copyleft Reciprocal Public License 1.5, or a commercial license with a license key. The commercial Community edition is free only below $5 million in annual revenue and $10 million in outside capital. AnyMediator is Apache-2.0: free for any use, commercial included, with no key and no threshold. See [MediatR alternatives compared](./mediatr-alternatives) for the details and the other options.
+From version 13, MediatR is dual licensed: the copyleft Reciprocal Public License 1.5, or a commercial license with a license key. AnyMediator is Apache-2.0: free for any use, commercial included, with no key and no threshold. See [MediatR alternatives compared](./mediatr-alternatives) for the license details and the other options.
 
 ## The three changes
 

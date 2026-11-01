@@ -20,7 +20,6 @@ Facts as of November 2026.
 
 | | AnyMediator | MediatR | Mediator | LiteBus | Wolverine | FreeMediator |
 |---|---|---|---|---|---|---|
-| Latest version | 2.2.1 | 14.2.0 | 3.0.2 | 7.0.0 | 6.x | 1.4.2 |
 | License | Apache-2.0 | RPL-1.5 or commercial | MIT | MIT | MIT | MIT |
 | Same API as MediatR | Yes, namespace `AnyMediator` | — | Similar names; `ValueTask`, different delegates, singleton by default | No (`ICommand`, `IQuery`, `IEvent`) | No (convention-based handlers) | Yes, namespace `FreeMediator` |
 | Dispatch | Generic wrappers built once per message type | Runtime reflection | Source generator | Reflection at registration | Code generated at startup or ahead of time | Reflection and `Reflection.Emit` |
@@ -37,7 +36,7 @@ Facts as of November 2026.
 
 - **Keep MediatR** if your organization qualifies for the Community edition or is happy to pay for a license and support from its author.
 - **AnyMediator** if you want to leave MediatR without touching handlers: same type names and configuration API, all of MediatR's features including streams, processors and exception handlers, Apache-2.0 with no key. Migration is [a package, a namespace and the registration call](./migrating-from-mediatr).
-- **Mediator** if raw speed or Native AOT matters most: its source generator dispatches in about 10 ns. Expect to adapt behaviors to `ValueTask` and its delegate types.
+- **Mediator** if raw speed or Native AOT matters most, thanks to its source generator. Expect to adapt behaviors to `ValueTask` and its delegate types.
 - **Wolverine** if you also want messaging, queues and durable outboxes: it is a framework rather than a mediator library, with its own handler conventions.
 - **LiteBus** if you prefer separate command, query and event mediators and are on .NET 10.
 - **FreeMediator** for a close MediatR clone on .NET 10 when you do not need streams, processors or exception handlers.
@@ -46,13 +45,11 @@ For speed numbers measured on the same machine, see [Performance](./performance)
 
 ## Sources
 
-- MediatR: [license](https://github.com/LuckyPennySoftware/MediatR/blob/main/LICENSE.md), [license agreement](https://luckypennysoftware.com/license), [pricing and FAQ](https://mediatr.io/), [NuGet 14.2.0](https://www.nuget.org/packages/MediatR/14.2.0), [NuGet 12.5.0](https://www.nuget.org/packages/MediatR/12.5.0)
-- Mediator: [repository and differences from MediatR](https://github.com/martinothamar/Mediator), [NuGet](https://www.nuget.org/packages/Mediator.SourceGenerator/3.0.2)
-- LiteBus: [repository](https://github.com/litenova/LiteBus), [differences from MediatR](https://litebus.io/docs/migration/mediatr-differences), [NuGet](https://www.nuget.org/packages/LiteBus/7.0.0)
+- MediatR: [license](https://github.com/LuckyPennySoftware/MediatR/blob/main/LICENSE.md), [license agreement](https://luckypennysoftware.com/license), [pricing and FAQ](https://mediatr.io/), [NuGet](https://www.nuget.org/packages/MediatR), [NuGet 12.5.0](https://www.nuget.org/packages/MediatR/12.5.0)
+- Mediator: [repository and differences from MediatR](https://github.com/martinothamar/Mediator), [NuGet](https://www.nuget.org/packages/Mediator.SourceGenerator)
+- LiteBus: [repository](https://github.com/litenova/LiteBus), [differences from MediatR](https://litebus.io/docs/migration/mediatr-differences), [NuGet](https://www.nuget.org/packages/LiteBus)
 - Wolverine: [Wolverine as mediator](https://wolverinefx.net/tutorials/mediator.html), [from MediatR](https://wolverinefx.net/introduction/from-mediatr.html), [AOT](https://wolverinefx.io/guide/aot), [NuGet](https://www.nuget.org/packages/WolverineFx)
-- FreeMediator: [repository](https://github.com/steffenskov/FreeMediator), [NuGet](https://www.nuget.org/packages/FreeMediator/1.4.2)
-
-Found something out of date? [Edit this page](https://github.com/Adiakys/AnyMediator/edit/main/docs/guide/mediatr-alternatives.md).
+- FreeMediator: [repository](https://github.com/steffenskov/FreeMediator), [NuGet](https://www.nuget.org/packages/FreeMediator)
 
 ---
 

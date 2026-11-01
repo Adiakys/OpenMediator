@@ -67,6 +67,13 @@ const source = ref<string>(examples['Program.cs'])
 const editing = ref(false)
 const rules = reactive({ namespace: true, registration: true, licenseKey: true })
 
+// Where each MediatR namespace went; a using of any other one is left as it is.
+const namespaces: Record<string, string> = {
+  '': 'AnyMediator',
+  '.Pipeline': 'AnyMediator',
+  '.NotificationPublishers': 'AnyMediator.NotificationPublishers',
+}
+
 function pickExample(name: ExampleName) {
   example.value = name
   source.value = examples[name]
@@ -79,19 +86,17 @@ const converted = computed(() => {
   const lines = source.value.replace(/\r\n/g, '\n').split('\n')
   const rows: Row[] = []
   let changed = 0
-  let usingEmitted = false
+  const emitted = new Set<string>()
 
   for (const line of lines) {
     let next: string | null = line
 
     if (rules.namespace) {
-      const using = /^(\s*)(global\s+)?using\s+(Open)?MediatR(\.\w+)*\s*;/.exec(line)
-      // The notification publishers keep a namespace of their own; everything else is in AnyMediator.
-      if (using && using[4] === '.NotificationPublishers') {
-        next = `${using[1]}${using[2] ?? ''}using AnyMediator.NotificationPublishers;`
-      } else if (using) {
-        next = usingEmitted ? null : `${using[1]}${using[2] ?? ''}using AnyMediator;`
-        usingEmitted = true
+      const using = /^(\s*)(global\s+)?using\s+(Open)?MediatR((?:\.\w+)*)\s*;/.exec(line)
+      const target = using ? namespaces[using[4]] : undefined
+      if (using && target) {
+        next = emitted.has(target) ? null : `${using[1]}${using[2] ?? ''}using ${target};`
+        emitted.add(target)
       }
     }
     if (next !== null && rules.registration) next = next.replace(/\bAdd(Open)?MediatR\s*\(/g, 'AddAnyMediator(').replace(/\bOpenMediatRConfiguration\b/g, 'AnyMediatorConfiguration')

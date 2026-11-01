@@ -3,6 +3,8 @@ name: Publish NuGet Packages
 on:
   release:
     types: [published]
+  # Publishes the version in Directory.Build.props from the chosen ref; already-published versions are skipped.
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -11,6 +13,7 @@ jobs:
     permissions:
       packages: write
       contents: read
+      id-token: write # trusted publishing: exchange the GitHub OIDC token for a short-lived nuget.org key
 
     steps:
       - uses: actions/checkout@v4
@@ -40,13 +43,19 @@ jobs:
             --api-key ${{ secrets.GITHUB_TOKEN }} \
             --skip-duplicate
 
+      - name: Log in to NuGet.org (trusted publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: Adiakys
+
       - name: Push to NuGet.org
         run: |
           dotnet nuget push "./nupkgs/*.nupkg" \
             --source "https://api.nuget.org/v3/index.json" \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} \
             --skip-duplicate
           dotnet nuget push "./nupkgs/*.snupkg" \
             --source "https://api.nuget.org/v3/index.json" \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} \
             --skip-duplicate

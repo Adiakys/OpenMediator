@@ -370,7 +370,7 @@ services.AddAnyMediator(cfg =>
    dotnet add package AnyMediator
    ```
 
-2. Replace the namespace: `using MediatR;` becomes `using AnyMediator;`.
+2. Replace the namespaces: `using MediatR;` and `using MediatR.Pipeline;` become `using AnyMediator;`, and `MediatR.NotificationPublishers` becomes `AnyMediator.NotificationPublishers`.
 
 3. Replace the registration call: `AddMediatR` becomes `AddAnyMediator`. The configuration methods keep their names:
 
@@ -393,16 +393,9 @@ services.AddAnyMediator(cfg =>
 
 Requests, notifications, handlers, pipeline behaviors, processors and exception handlers/actions compile unchanged once the namespace is updated.
 
-### Differences to check
+Then check the few [differences from MediatR](https://adiakys.github.io/AnyMediator/guide/migrating-from-mediatr#differences-to-check): mainly, two handlers for one request are a startup error, and a custom `INotificationPublisher` has a simpler signature.
 
-| Area | MediatR | AnyMediator |
-|------|---------|-------------|
-| License | Commercial license from v13 | Apache-2.0, free for any use |
-| `LicenseKey` | Required for commercial use | Not needed: remove it |
-| Two handlers for one request | The first one found is used | `AddAnyMediator` throws and names both classes |
-| Notification delivery | In-process handlers | In-process handlers plus custom `INotificationSink` channels |
-
-`Send(object)`, `Publish(object)`, `where TRequest : notnull` behaviors, handlers for base notification types, generic handlers, `cfg.TypeEvaluator` and exceptions from `Publish` work as in MediatR.
+Comparing options? See [MediatR alternatives compared](https://adiakys.github.io/AnyMediator/guide/mediatr-alternatives): AnyMediator, MediatR, Mediator, LiteBus, Wolverine and FreeMediator side by side.
 
 ## Upgrading from OpenMediatR
 

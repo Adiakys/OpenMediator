@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const siteUrl = 'https://adiakys.github.io/AnyMediator/'
+// Public by design: IndexNow engines check it against <siteUrl><key>.txt.
+const indexNowKey = '476ce3b0ed7ad3a75056b918ccf6c4fb'
 const description =
   'AnyMediator is a free, open-source (Apache-2.0) MediatR alternative for .NET with a MediatR-compatible API: requests, notifications, streams, pipeline behaviors, processors and exception handlers.'
 
@@ -10,6 +12,7 @@ const description =
 const guide = [
   { text: 'Getting started', link: '/guide/getting-started' },
   { text: 'Migrating from MediatR', link: '/guide/migrating-from-mediatr' },
+  { text: 'MediatR alternatives', link: '/guide/mediatr-alternatives' },
   { text: 'Requests', link: '/guide/requests' },
   { text: 'Stream requests', link: '/guide/stream-requests' },
   { text: 'Notifications', link: '/guide/notifications' },
@@ -71,7 +74,8 @@ export default defineConfig({
     )
   },
 
-  // llms-full.txt: every guide page as one Markdown file, for LLMs and coding agents.
+  // llms-full.txt: every guide page as one Markdown file, for LLMs and coding agents. Also the IndexNow key file, and
+  // next to dist the request the Docs workflow sends to IndexNow (Bing and others) after deploying.
   buildEnd({ outDir, srcDir }) {
     const parts = guide.map(({ text, link }) => {
       const body = readFileSync(join(srcDir, `${link}.md`), 'utf8').replace(/^---[\s\S]*?---\n/, '')
@@ -79,6 +83,14 @@ export default defineConfig({
     })
     const header = `# AnyMediator\n\n> ${description}\n\nPackage: https://www.nuget.org/packages/AnyMediator\nSource: https://github.com/Adiakys/AnyMediator\n`
     writeFileSync(join(outDir, 'llms-full.txt'), [header, ...parts].join('\n\n'))
+
+    writeFileSync(join(outDir, `${indexNowKey}.txt`), indexNowKey)
+    writeFileSync(join(outDir, '..', 'indexnow.json'), JSON.stringify({
+      host: new URL(siteUrl).host,
+      key: indexNowKey,
+      keyLocation: `${siteUrl}${indexNowKey}.txt`,
+      urlList: [siteUrl, ...guide.map(({ link }) => siteUrl + link.slice(1))],
+    }))
   },
 
   markdown: {

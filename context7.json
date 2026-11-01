@@ -1,0 +1,15 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "AnyMediator",
+  "description": "AnyMediator is a free, open-source (Apache-2.0) in-process mediator for .NET 8 and .NET 10, and an alternative to MediatR with a MediatR-compatible API. It supports requests, stream requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions and pluggable notification sinks.",
+  "branch": "main",
+  "folders": ["docs/guide"],
+  "rules": [
+    "Install with `dotnet add package AnyMediator` and register with `services.AddAnyMediator(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>())`.",
+    "The core types live in the `AnyMediator` namespace (the notification publisher strategies in `AnyMediator.NotificationPublishers`): `IRequest<T>`, `IRequestHandler<TRequest, TResponse>`, `INotification`, `INotificationHandler<T>`, `ISender`, `IPublisher`, `IMediator`, `IPipelineBehavior<TRequest, TResponse>`.",
+    "To migrate from MediatR, follow the 'Migrating from MediatR' guide: swap the package, the namespaces and `AddMediatR` for `AddAnyMediator`, and remove `LicenseKey`. Handler and behavior code does not change.",
+    "A request has exactly one handler: two handlers for the same request make `AddAnyMediator` throw at startup.",
+    "Pipeline behaviors are not scanned: register them with `cfg.AddOpenBehavior(typeof(MyBehavior<,>))`; the first registered is the outermost.",
+    "No license key, revenue threshold or registration is required, including for commercial use."
+  ]
+}

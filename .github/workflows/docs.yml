@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      indexnow: ${{ steps.indexnow.outputs.request }}
     defaults:
       run:
         working-directory: docs
@@ -40,6 +42,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Read the IndexNow request
+        id: indexnow
+        run: echo "request=$(cat .vitepress/indexnow.json)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
@@ -55,3 +61,12 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Tells Bing and the other IndexNow engines (which also feed ChatGPT search and Copilot) that the pages changed.
+      - name: Submit the pages to IndexNow
+        continue-on-error: true
+        env:
+          REQUEST: ${{ needs.build.outputs.indexnow }}
+        run: >
+          curl -sS -X POST https://api.indexnow.org/indexnow -H 'Content-Type: application/json; charset=utf-8'
+          -d "$REQUEST" -w 'IndexNow: HTTP %{http_code}\n'

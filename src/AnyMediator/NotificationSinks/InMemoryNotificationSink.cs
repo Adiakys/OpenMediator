@@ -1,52 +1,67 @@
-using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace AnyMediator.NotificationSinks;
 
 internal sealed class InMemoryNotificationSink : INotificationSink
 {
-    private static readonly ConcurrentDictionary<Type, NotificationMetadata> MetadataCache = new();
-
     private readonly IServiceProvider _services;
+    private readonly HandlerRegistry _registry;
     private readonly INotificationPublisher _publisher;
 
-    public InMemoryNotificationSink(IServiceProvider services, INotificationPublisher publisher)
+    public InMemoryNotificationSink(IServiceProvider services, HandlerRegistry registry, INotificationPublisher publisher)
     {
         _services = services;
+        _registry = registry;
         _publisher = publisher;
     }
 
     public Task Dispatch<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
     {
-        var metadata = GetOrCreateMetadata(notification!.GetType());
-        var handlers = _services.GetServices(metadata.HandlerType);
+        var targets = _registry.GetNotificationTargets(notification!.GetType());
+        var handlerCalls = new List<Func<Task>>();
 
-        var handlerCalls = handlers.Select(handler => new Func<Task>(async () =>
+        // With handlers for base types too, a class that already ran for a more specific type is skipped, so a class
+        // handling both OrderPlaced and IDomainEvent runs once; several instances registered for one type all run.
+        var classesDone = targets.Length > 1 ? new HashSet<Type>() : null;
+
+        foreach (var target in targets)
         {
-            try
+            var classesOfTarget = classesDone is null ? null : new HashSet<Type>();
+
+            foreach (var handler in _registry.ResolveAll(_services, target))
             {
-                await (metadata.HandleMethod.Invoke(handler, [notification, cancellationToken]) as Task)!;
+                if (classesDone is not null)
+                {
+                    var handlerClass = handler.GetType();
+                    if (handlerClass.IsGenericType)
+                        handlerClass = handlerClass.GetGenericTypeDefinition();
+
+                    if (classesDone.Contains(handlerClass))
+                        continue;
+
+                    classesOfTarget!.Add(handlerClass);
+                }
+
+                handlerCalls.Add(() => Invoke(target.HandleMethod, handler, notification, cancellationToken));
             }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null)
-            {
-                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-            }
-        }));
+
+            if (classesOfTarget is not null)
+                classesDone!.UnionWith(classesOfTarget);
+        }
 
         return _publisher.Publish(handlerCalls, cancellationToken);
     }
 
-    private static NotificationMetadata GetOrCreateMetadata(Type notificationType)
+    private static async Task Invoke(MethodInfo handleMethod, object handler, object notification, CancellationToken cancellationToken)
     {
-        return MetadataCache.GetOrAdd(notificationType, _ =>
+        try
         {
-            var handlerType = typeof(INotificationHandler<>).MakeGenericType(notificationType);
-            var handleMethod = handlerType.GetMethod("Handle", [notificationType, typeof(CancellationToken)])!;
-            return new NotificationMetadata(handlerType, handleMethod);
-        });
+            await (handleMethod.Invoke(handler, [notification, cancellationToken]) as Task)!;
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+        }
     }
-
-    private sealed record NotificationMetadata(Type HandlerType, MethodInfo HandleMethod);
 }

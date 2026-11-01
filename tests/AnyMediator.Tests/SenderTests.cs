@@ -13,7 +13,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(typeof(IRequestHandler<TestRequest, string>)))
             .Returns(handler);
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var result = await sender.Send(new TestRequest());
 
@@ -36,7 +36,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(pipelineServiceType))
             .Returns(new List<IPipelineBehavior<TestRequest, string>> { pipeline1, pipeline2, pipeline3 });
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var result = await sender.Send(new TestRequest());
 
@@ -58,7 +58,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(typeof(IRequestHandler<TestRequest, string>)))
             .Returns(handler.Object);
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var act = () => sender.Send(new TestRequest());
 
@@ -84,7 +84,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(pipelineServiceType))
             .Returns(new List<IPipelineBehavior<TestRequest, string>> { pipeline.Object });
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         var act = () => sender.Send(new TestRequest());
 
@@ -107,7 +107,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(typeof(IRequestHandler<TestRequest, string>)))
             .Returns(handler.Object);
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         await sender.Send(new TestRequest(), cts.Token);
 
@@ -135,7 +135,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(pipelineServiceType))
             .Returns(new List<IPipelineBehavior<TestRequest, string>> { pipeline });
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         await sender.Send(new TestRequest(), cts.Token);
 
@@ -150,7 +150,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(typeof(IRequestHandler<TestVoidRequest, Unit>)))
             .Returns(handler);
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         await sender.Send(new TestVoidRequest());
 
@@ -171,7 +171,7 @@ public sealed class SenderTests
         services.Setup(x => x.GetService(pipelineServiceType))
             .Returns(new List<IPipelineBehavior<TestVoidRequest, Unit>> { pipeline });
 
-        var sender = new AnyMediatorSender(services.Object);
+        var sender = new AnyMediatorSender(services.Object, new HandlerRegistry());
 
         await sender.Send(new TestVoidRequest());
 

@@ -16,6 +16,11 @@ internal sealed class Mediator : IMediator
         return _sender.Send(request, cancellationToken);
     }
 
+    public Task<object?> Send(object request, CancellationToken cancellationToken = default)
+    {
+        return _sender.Send(request, cancellationToken);
+    }
+
     public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         return _sender.CreateStream(request, cancellationToken);
@@ -27,6 +32,11 @@ internal sealed class Mediator : IMediator
     }
 
     public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
+    {
+        return _publisher.Publish(notification, cancellationToken);
+    }
+
+    public Task Publish(object notification, CancellationToken cancellationToken = default)
     {
         return _publisher.Publish(notification, cancellationToken);
     }

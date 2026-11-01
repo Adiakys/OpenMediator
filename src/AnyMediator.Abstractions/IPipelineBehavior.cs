@@ -15,8 +15,12 @@ public delegate Task<TResponse> RequestHandlerDelegate<TResponse>(CancellationTo
 /// </summary>
 /// <typeparam name="TRequest">The request type.</typeparam>
 /// <typeparam name="TResponse">The response type.</typeparam>
+/// <remarks>
+/// The constraint is <c>notnull</c>, as in MediatR, so behaviors written for MediatR compile unchanged. A behavior may
+/// narrow it, for example to <c>where TRequest : IRequest&lt;TResponse&gt;</c> or to a marker interface of your own.
+/// </remarks>
 public interface IPipelineBehavior<in TRequest, TResponse>
-    where TRequest : IRequest<TResponse>
+    where TRequest : notnull
 {
     /// <summary>
     /// Runs the behavior. Call <paramref name="next"/> to continue the pipeline, or return without calling it

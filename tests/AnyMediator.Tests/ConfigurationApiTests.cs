@@ -1,19 +1,11 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AnyMediator.Tests;
 
 public sealed class ConfigurationApiTests
 {
-    private static IServiceCollection EmptyServices()
-    {
-        var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
-        return services;
-    }
+    private static IServiceCollection EmptyServices() => new ServiceCollection();
 
     // ---------- AddBehavior closed-generic ----------
 

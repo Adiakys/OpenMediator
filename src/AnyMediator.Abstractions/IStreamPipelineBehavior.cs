@@ -14,8 +14,11 @@ public delegate IAsyncEnumerable<TResponse> StreamHandlerDelegate<out TResponse>
 /// </summary>
 /// <typeparam name="TRequest">The stream request type.</typeparam>
 /// <typeparam name="TResponse">The type of the streamed items.</typeparam>
+/// <remarks>
+/// The constraint is <c>notnull</c>, as in MediatR, so stream behaviors written for MediatR compile unchanged.
+/// </remarks>
 public interface IStreamPipelineBehavior<in TRequest, TResponse>
-    where TRequest : IStreamRequest<TResponse>
+    where TRequest : notnull
 {
     /// <summary>
     /// Runs the behavior. Call <paramref name="next"/> to obtain the inner stream, then yield, filter or

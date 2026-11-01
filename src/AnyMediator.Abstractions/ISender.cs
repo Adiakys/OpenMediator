@@ -25,6 +25,21 @@ public interface ISender
         => Send<Unit>(request, cancellationToken);
 
     /// <summary>
+    /// Sends a request whose type is only known at runtime. The request must implement exactly one
+    /// <see cref="IRequest{TResponse}"/>; the response is returned boxed, and is <see cref="Unit.Value"/> for a
+    /// request that returns no value.
+    /// </summary>
+    /// <param name="request">The request to send.</param>
+    /// <param name="cancellationToken">Token to observe for cancellation.</param>
+    /// <returns>The response produced by the handler.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="request"/> does not implement <see cref="IRequest{TResponse}"/>, or implements it for more than one
+    /// response type.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">No handler is registered for the request type.</exception>
+    Task<object?> Send(object request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a stream of responses from the <see cref="IStreamRequestHandler{TRequest, TResponse}"/> of the
     /// request, through the configured stream pipeline behaviors.
     /// </summary>

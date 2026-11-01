@@ -1,7 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace AnyMediator.Tests;
@@ -15,8 +13,6 @@ public sealed class RequestExceptionTests
         Action<AnyMediatorConfiguration>? configure = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         if (trace is not null) services.AddSingleton(trace);
         if (recovery is not null) services.AddSingleton(recovery);
 
@@ -208,8 +204,6 @@ public sealed class RequestExceptionTests
         var recovery = new TestExceptionRecoveryResponse("recovered");
 
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(trace);
         services.AddSingleton(recovery);
         services.AddTransient(_ => ThrowingHandler(new InvalidOperationException("boom")));

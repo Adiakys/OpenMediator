@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace AnyMediator.Tests;
@@ -21,7 +20,7 @@ public sealed class PublisherTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationSink>)))
             .Returns(new[] { sink1.Object, sink2.Object });
 
-        var publisher = new AnyMediatorPublisher(services.Object, NullLogger<AnyMediatorPublisher>.Instance);
+        var publisher = new AnyMediatorPublisher(services.Object);
 
         await publisher.Publish(new TestNotification());
 
@@ -30,11 +29,12 @@ public sealed class PublisherTests
     }
 
     [Fact]
-    public async Task Publish_WhenSinkThrows_ShouldStillDispatchToRemainingSinks()
+    public async Task Publish_WhenSinkThrows_StillDispatchesToRemainingSinksThenRethrows()
     {
+        var failure = new InvalidOperationException("sink failed");
         var failingSink = new Mock<INotificationSink>();
         failingSink.Setup(x => x.Dispatch(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("sink failed"));
+            .ThrowsAsync(failure);
 
         var healthySink = new Mock<INotificationSink>();
         healthySink.Setup(x => x.Dispatch(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
@@ -44,28 +44,62 @@ public sealed class PublisherTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationSink>)))
             .Returns(new[] { failingSink.Object, healthySink.Object });
 
-        var publisher = new AnyMediatorPublisher(services.Object, NullLogger<AnyMediatorPublisher>.Instance);
+        var publisher = new AnyMediatorPublisher(services.Object);
 
-        await publisher.Publish(new TestNotification());
+        var act = () => publisher.Publish(new TestNotification());
 
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Should().BeSameAs(failure);
         healthySink.Verify(x => x.Dispatch(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task Publish_WhenSinkThrows_ShouldNotPropagateException()
+    public async Task Publish_WhenSeveralSinksThrow_ThrowsAggregateExceptionWithEveryFailure()
     {
-        var failingSink = new Mock<INotificationSink>();
-        failingSink.Setup(x => x.Dispatch(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("sink failed"));
+        var first = new InvalidOperationException("first");
+        var second = new TimeoutException("second");
+
+        var sink1 = new Mock<INotificationSink>();
+        sink1.Setup(x => x.Dispatch(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>())).ThrowsAsync(first);
+        var sink2 = new Mock<INotificationSink>();
+        sink2.Setup(x => x.Dispatch(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>())).ThrowsAsync(second);
 
         var services = new Mock<IServiceProvider>();
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationSink>)))
-            .Returns(new[] { failingSink.Object });
+            .Returns(new[] { sink1.Object, sink2.Object });
 
-        var publisher = new AnyMediatorPublisher(services.Object, NullLogger<AnyMediatorPublisher>.Instance);
+        var publisher = new AnyMediatorPublisher(services.Object);
 
         var act = () => publisher.Publish(new TestNotification());
 
-        await act.Should().NotThrowAsync();
+        (await act.Should().ThrowAsync<AggregateException>())
+            .Which.InnerExceptions.Should().Equal(first, second);
+    }
+
+    [Fact]
+    public async Task Publish_ObjectOverload_DispatchesWithTheRuntimeType()
+    {
+        var sink = new Mock<INotificationSink>(MockBehavior.Strict);
+        sink.Setup(x => x.Dispatch(It.IsAny<TestNotification>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var services = new Mock<IServiceProvider>();
+        services.Setup(x => x.GetService(typeof(IEnumerable<INotificationSink>))).Returns(new[] { sink.Object });
+
+        IPublisher publisher = new AnyMediatorPublisher(services.Object);
+        object notification = new TestNotification();
+
+        await publisher.Publish(notification);
+
+        // Dispatch<TestNotification>, not Dispatch<INotification>: sinks keyed on typeof(TNotification) see the real type.
+        sink.Verify(x => x.Dispatch(It.Is<TestNotification>(n => ReferenceEquals(n, notification)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Publish_ObjectOverload_WhenNotANotification_ThrowsArgumentException()
+    {
+        IPublisher publisher = new AnyMediatorPublisher(new Mock<IServiceProvider>().Object);
+
+        var act = () => publisher.Publish((object)"not a notification");
+
+        await act.Should().ThrowAsync<ArgumentException>();
     }
 }

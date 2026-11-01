@@ -1,7 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace AnyMediator.Tests;
@@ -11,8 +9,6 @@ public sealed class RequestProcessorTests
     private static ServiceProvider BuildProvider(List<string> trace, Action<AnyMediatorConfiguration>? configure = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(trace);
         services.AddAnyMediator(configure ?? (cfg =>
         {
@@ -27,8 +23,6 @@ public sealed class RequestProcessorTests
     {
         var trace = new List<string>();
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(trace);
         services.AddAnyMediator(cfg =>
         {
@@ -83,8 +77,6 @@ public sealed class RequestProcessorTests
             .ThrowsAsync(expected);
 
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(trace);
         services.AddAnyMediator(cfg =>
         {
@@ -113,8 +105,6 @@ public sealed class RequestProcessorTests
             .ThrowsAsync(expected);
 
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(trace);
         services.AddAnyMediator(cfg =>
         {

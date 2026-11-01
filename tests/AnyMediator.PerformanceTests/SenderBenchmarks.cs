@@ -1,7 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AnyMediator.PerformanceTests;
 
@@ -46,8 +44,6 @@ public class SenderBenchmarks
     private static ISender BuildSender(params Type[] behaviors)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddAnyMediator(cfg =>
         {
             cfg.RegisterServicesFromAssemblyContaining<BenchmarkRequest>();

@@ -17,7 +17,7 @@ public sealed class InMemoryNotificationSinkTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
             .Returns(new List<INotificationHandler<TestNotification>> { handler1, handler2 });
 
-        var sink = new InMemoryNotificationSink(services.Object, new ForeachAwaitPublisher());
+        var sink = new InMemoryNotificationSink(services.Object, new HandlerRegistry(), new ForeachAwaitPublisher());
 
         await sink.Dispatch(new TestNotification());
 
@@ -37,7 +37,7 @@ public sealed class InMemoryNotificationSinkTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
             .Returns(new List<INotificationHandler<TestNotification>> { handler.Object });
 
-        var sink = new InMemoryNotificationSink(services.Object, new ForeachAwaitPublisher());
+        var sink = new InMemoryNotificationSink(services.Object, new HandlerRegistry(), new ForeachAwaitPublisher());
 
         var act = () => sink.Dispatch(new TestNotification());
 
@@ -52,7 +52,7 @@ public sealed class InMemoryNotificationSinkTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
             .Returns(new List<INotificationHandler<TestNotification>>());
 
-        var sink = new InMemoryNotificationSink(services.Object, new ForeachAwaitPublisher());
+        var sink = new InMemoryNotificationSink(services.Object, new HandlerRegistry(), new ForeachAwaitPublisher());
 
         var act = () => sink.Dispatch(new TestNotification());
 
@@ -69,7 +69,7 @@ public sealed class InMemoryNotificationSinkTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
             .Returns(new List<INotificationHandler<TestNotification>> { handler1, handler2 });
 
-        var sink = new InMemoryNotificationSink(services.Object, new TaskWhenAllPublisher());
+        var sink = new InMemoryNotificationSink(services.Object, new HandlerRegistry(), new TaskWhenAllPublisher());
 
         await sink.Dispatch(new TestNotification());
 
@@ -95,7 +95,7 @@ public sealed class InMemoryNotificationSinkTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
             .Returns(new List<INotificationHandler<TestNotification>> { failing1.Object, ok, failing2.Object });
 
-        var sink = new InMemoryNotificationSink(services.Object, new ForeachAwaitContinueOnExceptionPublisher());
+        var sink = new InMemoryNotificationSink(services.Object, new HandlerRegistry(), new ForeachAwaitContinueOnExceptionPublisher());
 
         var act = () => sink.Dispatch(new TestNotification());
 
@@ -115,7 +115,7 @@ public sealed class InMemoryNotificationSinkTests
         services.Setup(x => x.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
             .Returns(new List<INotificationHandler<TestNotification>> { handler1, handler2 });
 
-        var sink = new InMemoryNotificationSink(services.Object, new ForeachAwaitContinueOnExceptionPublisher());
+        var sink = new InMemoryNotificationSink(services.Object, new HandlerRegistry(), new ForeachAwaitContinueOnExceptionPublisher());
 
         await sink.Dispatch(new TestNotification());
 

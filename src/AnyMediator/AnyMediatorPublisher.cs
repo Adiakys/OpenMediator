@@ -8,10 +8,24 @@ internal sealed class AnyMediatorPublisher(IServiceProvider services) : IPublish
 {
     private static readonly ConcurrentDictionary<Type, Func<AnyMediatorPublisher, object, CancellationToken, Task>> ObjectPublishCache = new();
 
-    public async Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
+    public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
     {
         ArgumentNullException.ThrowIfNull(notification);
 
+        return Telemetry.IsEnabled
+            ? PublishTraced(notification, cancellationToken)
+            : PublishCore(notification, cancellationToken);
+    }
+
+    private static readonly ConcurrentDictionary<Type, OperationSpan> PublishSpans = new();
+
+    private Task PublishTraced<TNotification>(TNotification notification, CancellationToken cancellationToken) where TNotification : INotification
+        => Telemetry.Run(PublishSpans.GetOrAdd(notification.GetType(), static type => new OperationSpan("publish", type)),
+            (publisher: this, notification, cancellationToken),
+            static s => s.publisher.PublishCore(s.notification, s.cancellationToken));
+
+    private async Task PublishCore<TNotification>(TNotification notification, CancellationToken cancellationToken) where TNotification : INotification
+    {
         // Every sink runs even if an earlier one fails; the failures reach the caller afterwards, as in MediatR.
         List<Exception>? failures = null;
 

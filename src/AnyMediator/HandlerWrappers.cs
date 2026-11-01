@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace AnyMediator;
@@ -23,12 +24,23 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
     where TRequest : IRequest<TResponse>
 {
     public override Task<TResponse> Handle(IRequest<TResponse> request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
+        => Telemetry.IsEnabled
+            ? HandleTraced((TRequest)request, services, registry, cancellationToken)
+            : HandleCore((TRequest)request, services, registry, cancellationToken);
+
+    private static readonly OperationSpan Span = new("send", typeof(TRequest));
+
+    private static Task<TResponse> HandleTraced(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
+        => Telemetry.Run(Span, (request, services, registry, cancellationToken),
+            static s => HandleCore(s.request, s.services, s.registry, s.cancellationToken));
+
+    private static Task<TResponse> HandleCore(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
     {
         var behaviors = services.GetAll<IPipelineBehavior<TRequest, TResponse>>();
 
         return behaviors.Length == 0
-            ? registry.GetRequired<IRequestHandler<TRequest, TResponse>>(services).Handle((TRequest)request, cancellationToken)
-            : RunPipeline((TRequest)request, behaviors, services, registry, cancellationToken);
+            ? registry.GetRequired<IRequestHandler<TRequest, TResponse>>(services).Handle(request, cancellationToken)
+            : RunPipeline(request, behaviors, services, registry, cancellationToken);
     }
 
     // Apart from Handle so that its closures are only allocated when there are behaviors.
@@ -75,12 +87,23 @@ internal sealed class StreamHandlerWrapper<TRequest, TResponse> : StreamHandlerW
     where TRequest : IStreamRequest<TResponse>
 {
     public override IAsyncEnumerable<TResponse> Handle(IStreamRequest<TResponse> request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
+        => Telemetry.IsEnabled
+            ? HandleTraced((TRequest)request, services, registry, cancellationToken)
+            : HandleCore((TRequest)request, services, registry, cancellationToken);
+
+    private static readonly OperationSpan Span = new("create_stream", typeof(TRequest));
+
+    private static IAsyncEnumerable<TResponse> HandleTraced(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
+        => Telemetry.RunStream(Span, (request, services, registry, cancellationToken),
+            static s => HandleCore(s.request, s.services, s.registry, s.cancellationToken), cancellationToken);
+
+    private static IAsyncEnumerable<TResponse> HandleCore(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
     {
         var behaviors = services.GetAll<IStreamPipelineBehavior<TRequest, TResponse>>();
 
         return behaviors.Length == 0
-            ? registry.GetRequired<IStreamRequestHandler<TRequest, TResponse>>(services).Handle((TRequest)request, cancellationToken)
-            : RunPipeline((TRequest)request, behaviors, services, registry, cancellationToken);
+            ? registry.GetRequired<IStreamRequestHandler<TRequest, TResponse>>(services).Handle(request, cancellationToken)
+            : RunPipeline(request, behaviors, services, registry, cancellationToken);
     }
 
     private static IAsyncEnumerable<TResponse> RunPipeline(
@@ -127,5 +150,18 @@ internal sealed class NotificationTarget<TNotification>(HandlerRegistry.ClosedHa
     }
 
     public override Func<Task> CreateCall(object handler, object notification, CancellationToken cancellationToken)
+        => Telemetry.IsEnabled ? CreateTracedCall(handler, notification, cancellationToken) : CreatePlainCall(handler, notification, cancellationToken);
+
+    private static Func<Task> CreatePlainCall(object handler, object notification, CancellationToken cancellationToken)
         => () => ((INotificationHandler<TNotification>)handler).Handle((TNotification)notification, cancellationToken);
+
+    private static readonly ConcurrentDictionary<Type, OperationSpan> HandlerSpans = new();
+
+    // One child span per handler, under the publish span.
+    private static Func<Task> CreateTracedCall(object handler, object notification, CancellationToken cancellationToken)
+    {
+        var span = HandlerSpans.GetOrAdd(handler.GetType(), static type => new OperationSpan("handle", typeof(TNotification), type));
+        return () => Telemetry.Run(span, (handler, notification, cancellationToken),
+            static s => ((INotificationHandler<TNotification>)s.handler).Handle((TNotification)s.notification, s.cancellationToken));
+    }
 }

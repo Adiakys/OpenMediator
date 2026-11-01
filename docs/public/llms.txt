@@ -19,6 +19,7 @@ Differences from MediatR: two handlers for the same request make `AddAnyMediator
 - [Pre- and post-processors](https://adiakys.github.io/AnyMediator/guide/processors): IRequestPreProcessor, IRequestPostProcessor
 - [Exception handling](https://adiakys.github.io/AnyMediator/guide/exception-handling): IRequestExceptionHandler, IRequestExceptionAction
 - [Notification sinks](https://adiakys.github.io/AnyMediator/guide/notification-sinks): INotificationSink for brokers and webhooks
+- [Tracing and metrics](https://adiakys.github.io/AnyMediator/guide/tracing): OpenTelemetry spans and duration histogram via AnyMediatorDiagnostics.ActivitySourceName and MeterName
 - [Configuration](https://adiakys.github.io/AnyMediator/guide/configuration): every AddAnyMediator option
 
 ## Optional

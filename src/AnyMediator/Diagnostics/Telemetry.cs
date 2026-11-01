@@ -6,28 +6,28 @@ namespace AnyMediator;
 
 /// <summary>
 /// Spans and duration measurements for mediator operations. Callers check <see cref="IsEnabled"/> first, so with no
-/// listener the dispatch path pays one check and nothing else.
+/// listener the dispatch path pays one check and nothing else. Operations take their inputs as a state value and a
+/// static lambda, so tracing allocates no closure.
 /// </summary>
 internal static class Telemetry
 {
     private static readonly string? Version = typeof(Telemetry).Assembly.GetName().Version?.ToString(3);
-    private static readonly ActivitySource Source = new(AnyMediatorDiagnostics.ActivitySourceName, Version);
+    internal static readonly ActivitySource Source = new(AnyMediatorDiagnostics.ActivitySourceName, Version);
     private static readonly Meter Meter = new(AnyMediatorDiagnostics.MeterName, Version);
 
-    private static readonly Histogram<double> Duration = Meter.CreateHistogram<double>(
+    internal static readonly Histogram<double> Duration = Meter.CreateHistogram<double>(
         "anymediator.operation.duration", "s", "Duration of a mediator operation, behaviors and handlers included.");
 
     internal static bool IsEnabled => Source.HasListeners() || Duration.Enabled;
 
-    /// <summary>Runs <paramref name="operation"/> inside a span named "<paramref name="name"/> {message type}" and measures it.</summary>
-    internal static async Task<T> Run<T>(string name, Type messageType, Func<Task<T>> operation, Type? handlerType = null)
+    internal static async Task<T> Run<TState, T>(OperationSpan span, TState state, Func<TState, Task<T>> operation)
     {
-        using var activity = Start(name, messageType, handlerType);
+        using var activity = span.Start();
         var start = Stopwatch.GetTimestamp();
         Exception? failure = null;
         try
         {
-            return await operation();
+            return await operation(state);
         }
         catch (Exception ex)
         {
@@ -36,22 +36,39 @@ internal static class Telemetry
         }
         finally
         {
-            Record(name, messageType, start, failure);
+            span.RecordDuration(start, failure);
         }
     }
 
-    internal static Task Run(string name, Type messageType, Func<Task> operation, Type? handlerType = null)
-        => Run(name, messageType, async () => { await operation(); return true; }, handlerType);
+    internal static async Task Run<TState>(OperationSpan span, TState state, Func<TState, Task> operation)
+    {
+        using var activity = span.Start();
+        var start = Stopwatch.GetTimestamp();
+        Exception? failure = null;
+        try
+        {
+            await operation(state);
+        }
+        catch (Exception ex)
+        {
+            RecordFailure(activity, failure = ex);
+            throw;
+        }
+        finally
+        {
+            span.RecordDuration(start, failure);
+        }
+    }
 
     /// <summary>A span that lasts until the stream is fully enumerated, fails or is abandoned.</summary>
-    internal static async IAsyncEnumerable<T> RunStream<T>(
-        string name, Type messageType, Func<IAsyncEnumerable<T>> operation, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    internal static async IAsyncEnumerable<T> RunStream<TState, T>(
+        OperationSpan span, TState state, Func<TState, IAsyncEnumerable<T>> operation, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        using var activity = Start(name, messageType, null);
+        using var activity = span.Start();
         var start = Stopwatch.GetTimestamp();
         Exception? failure = null;
 
-        await using var items = operation().GetAsyncEnumerator(cancellationToken);
+        await using var items = operation(state).GetAsyncEnumerator(cancellationToken);
         try
         {
             while (true)
@@ -73,18 +90,8 @@ internal static class Telemetry
         }
         finally
         {
-            Record(name, messageType, start, failure);
+            span.RecordDuration(start, failure);
         }
-    }
-
-    private static Activity? Start(string name, Type messageType, Type? handlerType)
-    {
-        var activity = Source.StartActivity($"{name} {messageType.Name}");
-        activity?.SetTag("anymediator.operation", name);
-        activity?.SetTag("anymediator.message.type", messageType.FullName);
-        if (handlerType is not null)
-            activity?.SetTag("anymediator.handler.type", handlerType.FullName);
-        return activity;
     }
 
     // Follows the OpenTelemetry conventions for exceptions: error status, error.type, and an "exception" event.
@@ -101,19 +108,37 @@ internal static class Telemetry
             ["exception.stacktrace"] = exception.ToString(),
         }));
     }
+}
 
-    private static void Record(string name, Type messageType, long start, Exception? exception)
+/// <summary>
+/// The name and attributes of one kind of span, such as "send GetUser", built once and reused by every operation of
+/// that kind.
+/// </summary>
+internal sealed class OperationSpan(string operation, Type messageType, Type? handlerType = null)
+{
+    private readonly string _name = $"{operation} {messageType.Name}";
+
+    private readonly KeyValuePair<string, object?>[] _metricTags =
+    [
+        new("anymediator.operation", operation),
+        new("anymediator.message.type", messageType.FullName),
+    ];
+
+    private readonly KeyValuePair<string, object?>[] _spanTags = handlerType is null
+        ? [new("anymediator.operation", operation), new("anymediator.message.type", messageType.FullName)]
+        : [new("anymediator.operation", operation), new("anymediator.message.type", messageType.FullName), new("anymediator.handler.type", handlerType.FullName)];
+
+    // A default parent context makes the span a child of Activity.Current, as StartActivity(name) does.
+    public Activity? Start() => Telemetry.Source.StartActivity(_name, ActivityKind.Internal, default(ActivityContext), _spanTags);
+
+    public void RecordDuration(long start, Exception? failure)
     {
-        if (!Duration.Enabled) return;
+        if (!Telemetry.Duration.Enabled) return;
 
-        var tags = new TagList
-        {
-            { "anymediator.operation", name },
-            { "anymediator.message.type", messageType.FullName },
-        };
-        if (exception is not null)
-            tags.Add("error.type", exception.GetType().FullName);
-
-        Duration.Record(Stopwatch.GetElapsedTime(start).TotalSeconds, tags);
+        var seconds = Stopwatch.GetElapsedTime(start).TotalSeconds;
+        if (failure is null)
+            Telemetry.Duration.Record(seconds, _metricTags);
+        else
+            Telemetry.Duration.Record(seconds, [.. _metricTags, new("error.type", failure.GetType().FullName)]);
     }
 }

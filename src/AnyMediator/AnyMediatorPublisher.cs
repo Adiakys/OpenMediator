@@ -17,8 +17,12 @@ internal sealed class AnyMediatorPublisher(IServiceProvider services) : IPublish
             : PublishCore(notification, cancellationToken);
     }
 
+    private static readonly ConcurrentDictionary<Type, OperationSpan> PublishSpans = new();
+
     private Task PublishTraced<TNotification>(TNotification notification, CancellationToken cancellationToken) where TNotification : INotification
-        => Telemetry.Run("publish", notification.GetType(), () => PublishCore(notification, cancellationToken));
+        => Telemetry.Run(PublishSpans.GetOrAdd(notification.GetType(), static type => new OperationSpan("publish", type)),
+            (publisher: this, notification, cancellationToken),
+            static s => s.publisher.PublishCore(s.notification, s.cancellationToken));
 
     private async Task PublishCore<TNotification>(TNotification notification, CancellationToken cancellationToken) where TNotification : INotification
     {

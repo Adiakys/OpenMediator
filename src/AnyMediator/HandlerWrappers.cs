@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace AnyMediator;
@@ -27,9 +28,11 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             ? HandleTraced((TRequest)request, services, registry, cancellationToken)
             : HandleCore((TRequest)request, services, registry, cancellationToken);
 
-    // Apart from Handle so that its closure is only allocated when someone listens.
+    private static readonly OperationSpan Span = new("send", typeof(TRequest));
+
     private static Task<TResponse> HandleTraced(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
-        => Telemetry.Run("send", typeof(TRequest), () => HandleCore(request, services, registry, cancellationToken));
+        => Telemetry.Run(Span, (request, services, registry, cancellationToken),
+            static s => HandleCore(s.request, s.services, s.registry, s.cancellationToken));
 
     private static Task<TResponse> HandleCore(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
     {
@@ -88,8 +91,11 @@ internal sealed class StreamHandlerWrapper<TRequest, TResponse> : StreamHandlerW
             ? HandleTraced((TRequest)request, services, registry, cancellationToken)
             : HandleCore((TRequest)request, services, registry, cancellationToken);
 
+    private static readonly OperationSpan Span = new("create_stream", typeof(TRequest));
+
     private static IAsyncEnumerable<TResponse> HandleTraced(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
-        => Telemetry.RunStream("create_stream", typeof(TRequest), () => HandleCore(request, services, registry, cancellationToken), cancellationToken);
+        => Telemetry.RunStream(Span, (request, services, registry, cancellationToken),
+            static s => HandleCore(s.request, s.services, s.registry, s.cancellationToken), cancellationToken);
 
     private static IAsyncEnumerable<TResponse> HandleCore(TRequest request, IServiceProvider services, HandlerRegistry registry, CancellationToken cancellationToken)
     {
@@ -149,7 +155,13 @@ internal sealed class NotificationTarget<TNotification>(HandlerRegistry.ClosedHa
     private static Func<Task> CreatePlainCall(object handler, object notification, CancellationToken cancellationToken)
         => () => ((INotificationHandler<TNotification>)handler).Handle((TNotification)notification, cancellationToken);
 
+    private static readonly ConcurrentDictionary<Type, OperationSpan> HandlerSpans = new();
+
     // One child span per handler, under the publish span.
     private static Func<Task> CreateTracedCall(object handler, object notification, CancellationToken cancellationToken)
-        => () => Telemetry.Run("handle", typeof(TNotification), CreatePlainCall(handler, notification, cancellationToken), handler.GetType());
+    {
+        var span = HandlerSpans.GetOrAdd(handler.GetType(), static type => new OperationSpan("handle", typeof(TNotification), type));
+        return () => Telemetry.Run(span, (handler, notification, cancellationToken),
+            static s => ((INotificationHandler<TNotification>)s.handler).Handle((TNotification)s.notification, s.cancellationToken));
+    }
 }

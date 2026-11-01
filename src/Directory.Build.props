@@ -3,24 +3,20 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>1.5.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
-        <Description>Free, open-source (Apache-2.0) MediatR alternative with a MediatR-compatible API: migrate by swapping the package, the namespace and AddMediatR for AddOpenMediatR. Lightweight in-process mediator for .NET supporting requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions, and pluggable notification sinks.</Description>
-        <PackageProjectUrl>https://adiakys.github.io/OpenMediator/</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/Adiakys/OpenMediator</RepositoryUrl>
+        <Description>AnyMediator (formerly OpenMediatR) is a free, open-source (Apache-2.0) in-process mediator for .NET and a MediatR alternative with a MediatR-compatible API: requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions and pluggable notification sinks. Independent project, not affiliated with or endorsed by MediatR or Lucky Penny Software.</Description>
+        <PackageProjectUrl>https://adiakys.github.io/AnyMediator/</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Adiakys/AnyMediator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReleaseNotes>
-1.5.0:
-- Fix: pipeline behaviors now run in registration order, as documented and as in MediatR. The first registered behavior is the outermost. Previously the last registered ran first. Exception handler/action wrappers stay outermost and pre/post-processor wrappers stay innermost. Review the order of AddOpenBehavior calls if you registered more than one behavior.
-- RequestHandlerDelegate and StreamHandlerDelegate take an optional CancellationToken, so behaviors written for MediatR can call next() without arguments.
-- Send and CreateStream throw an InvalidOperationException that names the request, the handler interface to implement and the registration call to add when no handler is registered.
-- XML documentation for the whole public API, shipped in the package for IntelliSense and coding assistants.
-- Package metadata: documentation site as project URL, MediatR-alternative description and tags.
-- New documentation site: https://adiakys.github.io/OpenMediator/
+2.0.0:
+- OpenMediatR is now AnyMediator. Package IDs, namespace and type names change: replace the OpenMediatR package with AnyMediator, using OpenMediatR; with using AnyMediator;, AddOpenMediatR with AddAnyMediator and OpenMediatRConfiguration with AnyMediatorConfiguration. Behavior is the same as OpenMediatR 1.5.0.
+- Documentation: https://adiakys.github.io/AnyMediator/
         </PackageReleaseNotes>
-        <PackageTags>mediator;mediatr;mediatr-alternative;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source;apache-2.0</PackageTags>
+        <PackageTags>mediator;anymediator;openmediatr;mediatr;mediatr-alternative;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source;apache-2.0</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
         

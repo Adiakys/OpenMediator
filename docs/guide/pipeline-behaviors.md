@@ -1,5 +1,5 @@
 ---
-description: "Wrap every request with middleware such as logging, validation and transactions using IPipelineBehavior in OpenMediatR. Behaviors run in registration order."
+description: "Wrap every request with middleware such as logging, validation and transactions using IPipelineBehavior in AnyMediator. Behaviors run in registration order."
 ---
 
 # Pipeline behaviors
@@ -31,7 +31,7 @@ public sealed class LoggingBehavior<TRequest, TResponse>(ILogger<LoggingBehavior
 Behaviors are not found by scanning. Register them explicitly:
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<Program>();
     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
@@ -60,7 +60,7 @@ LoggingBehavior      before next()
 LoggingBehavior      after next()
 ```
 
-OpenMediatR adds its own wrappers around yours when you use processors or exception handlers:
+AnyMediator adds its own wrappers around yours when you use processors or exception handlers:
 
 ```
 exception actions and exception handlers   outermost

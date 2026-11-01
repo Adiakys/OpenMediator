@@ -1,5 +1,5 @@
 ---
-description: "Run code just before or just after a request handler with IRequestPreProcessor and IRequestPostProcessor in OpenMediatR."
+description: "Run code just before or just after a request handler with IRequestPreProcessor and IRequestPostProcessor in AnyMediator."
 ---
 
 # Pre- and post-processors
@@ -31,7 +31,7 @@ public sealed class AuditUserRead(IAuditLog audit) : IRequestPostProcessor<GetUs
 Processors are opt-in. Either register them one by one:
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<Program>();
     cfg.AddRequestPreProcessor<ValidateUserId>();

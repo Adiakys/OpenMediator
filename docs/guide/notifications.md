@@ -1,5 +1,5 @@
 ---
-description: "Publish events to any number of handlers with INotification, INotificationHandler and IPublisher in OpenMediatR, sequentially or in parallel."
+description: "Publish events to any number of handlers with INotification, INotificationHandler and IPublisher in AnyMediator, sequentially or in parallel."
 ---
 
 # Notifications
@@ -39,14 +39,14 @@ The `INotificationPublisher` strategy decides how the handlers of one notificati
 | `TaskWhenAllPublisher` | All at once with `Task.WhenAll` |
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<Program>();
     cfg.NotificationPublisherType = typeof(TaskWhenAllPublisher);
 });
 ```
 
-The publishers live in the `OpenMediatR.NotificationPublishers` namespace. To write your own, implement `INotificationPublisher`; to pass a configured instance, set `cfg.NotificationPublisher`, which takes precedence over `NotificationPublisherType`.
+The publishers live in the `AnyMediator.NotificationPublishers` namespace. To write your own, implement `INotificationPublisher`; to pass a configured instance, set `cfg.NotificationPublisher`, which takes precedence over `NotificationPublisherType`.
 
 ## Errors
 

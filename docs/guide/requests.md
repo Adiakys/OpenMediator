@@ -1,10 +1,10 @@
 ---
-description: "Define requests with IRequest<TResponse>, handle them with IRequestHandler and send them through ISender in OpenMediatR."
+description: "Define requests with IRequest<TResponse>, handle them with IRequestHandler and send them through ISender in AnyMediator."
 ---
 
 # Requests
 
-A request is a message with exactly one handler. Queries return data, commands change state; OpenMediatR treats both the same way.
+A request is a message with exactly one handler. Queries return data, commands change state; AnyMediator treats both the same way.
 
 ## Request with a response
 

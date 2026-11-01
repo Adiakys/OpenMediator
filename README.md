@@ -1,12 +1,14 @@
-# OpenMediatR
+# AnyMediator
 
-[![NuGet](https://img.shields.io/nuget/v/OpenMediatR.svg)](https://www.nuget.org/packages/OpenMediatR)
+[![NuGet](https://img.shields.io/nuget/v/AnyMediator.svg)](https://www.nuget.org/packages/AnyMediator)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-adiakys.github.io%2FOpenMediator-1a3e7e.svg)](https://adiakys.github.io/OpenMediator/)
+[![Docs](https://img.shields.io/badge/docs-adiakys.github.io%2FAnyMediator-1a3e7e.svg)](https://adiakys.github.io/AnyMediator/)
 
 **A free, open-source MediatR alternative for .NET with a MediatR-compatible API.**
 
-OpenMediatR is a lightweight, in-process mediator: requests, stream requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions, and pluggable notification sinks. It keeps the interface and configuration names of MediatR (`IRequest`, `IRequestHandler`, `INotification`, `ISender`, `IPublisher`, `IMediator`, `IPipelineBehavior`, `RegisterServicesFromAssemblyContaining`, ...), so moving an existing codebase over is mostly a namespace change. See [Migrating from MediatR](#migrating-from-mediatr).
+> AnyMediator was published as **OpenMediatR** up to version 1.5.0. See [Upgrading from OpenMediatR](#upgrading-from-openmediatr).
+
+AnyMediator is a lightweight, in-process mediator: requests, stream requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions, and pluggable notification sinks. It keeps the interface and configuration names of MediatR (`IRequest`, `IRequestHandler`, `INotification`, `ISender`, `IPublisher`, `IMediator`, `IPipelineBehavior`, `RegisterServicesFromAssemblyContaining`, ...), so moving an existing codebase over is mostly a namespace change. See [Migrating from MediatR](#migrating-from-mediatr).
 
 - **Free for everyone**: Apache-2.0, no license key, no revenue threshold, including commercial use.
 - **Familiar**: same programming model and type names as MediatR, so existing knowledge, samples and tooling carry over.
@@ -15,15 +17,15 @@ OpenMediatR is a lightweight, in-process mediator: requests, stream requests, no
 ## Installation
 
 ```
-dotnet add package OpenMediatR
+dotnet add package AnyMediator
 ```
 
 ## Setup
 
-Register OpenMediatR in your DI container:
+Register AnyMediator in your DI container:
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<MyRequestHandler>();
 });
@@ -172,7 +174,7 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
 Register behaviors explicitly via `AddOpenBehavior`:
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<MyRequestHandler>();
     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
@@ -211,7 +213,7 @@ Multiple processors per request type are supported and execute in registration o
 There are two ways to register processors:
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<MyRequestHandler>();
 
@@ -263,7 +265,7 @@ public sealed class LogFailures : IRequestExceptionAction<GetUser, Exception>
 Both are picked up automatically by the assembly scan — no flag required. Or register them explicitly:
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<MyRequestHandler>();
     cfg.AddRequestExceptionHandler<FallbackOnConnectionLost>();
@@ -325,7 +327,7 @@ You can inject `ISender`, `IPublisher`, or `IMediator` depending on what the con
 ## Configuration
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     // Scan multiple assemblies
     cfg.RegisterServicesFromAssembly(typeof(HandlerA).Assembly);
@@ -353,12 +355,12 @@ services.AddOpenMediatR(cfg =>
 
    ```
    dotnet remove package MediatR
-   dotnet add package OpenMediatR
+   dotnet add package AnyMediator
    ```
 
-2. Replace the namespace: `using MediatR;` becomes `using OpenMediatR;`.
+2. Replace the namespace: `using MediatR;` becomes `using AnyMediator;`.
 
-3. Replace the registration call: `AddMediatR` becomes `AddOpenMediatR`. The configuration methods keep their names:
+3. Replace the registration call: `AddMediatR` becomes `AddAnyMediator`. The configuration methods keep their names:
 
    ```csharp
    // Before
@@ -370,7 +372,7 @@ services.AddOpenMediatR(cfg =>
    });
 
    // After
-   services.AddOpenMediatR(cfg =>
+   services.AddAnyMediator(cfg =>
    {
        cfg.RegisterServicesFromAssemblyContaining<Program>();
        cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
@@ -381,7 +383,7 @@ Requests, notifications, handlers, processors and exception handlers/actions com
 
 ### Differences to check
 
-| Area | MediatR | OpenMediatR |
+| Area | MediatR | AnyMediator |
 |------|---------|-------------|
 | License | Commercial license from v13 | Apache-2.0, free for any use |
 | `LicenseKey` | Required for commercial use | Not needed: remove it |
@@ -392,6 +394,16 @@ Requests, notifications, handlers, processors and exception handlers/actions com
 
 Review any code that relies on `Publish` throwing when a notification handler fails.
 
+## Upgrading from OpenMediatR
+
+AnyMediator 2.0.0 is OpenMediatR 1.5.0 under a new name; behavior is unchanged.
+
+1. Replace the package: `dotnet remove package OpenMediatR` and `dotnet add package AnyMediator` (or `OpenMediatR.Abstractions` with `AnyMediator.Abstractions`).
+2. Replace `using OpenMediatR;` with `using AnyMediator;` (and `OpenMediatR.NotificationPublishers` with `AnyMediator.NotificationPublishers`).
+3. Replace `AddOpenMediatR` with `AddAnyMediator`, and `OpenMediatRConfiguration` with `AnyMediatorConfiguration` if you reference it.
+
 ## License
 
 [Apache-2.0](LICENSE)
+
+AnyMediator is an independent project. It is not affiliated with or endorsed by MediatR, Jimmy Bogard or Lucky Penny Software. MediatR is mentioned only to describe compatibility.

@@ -16,11 +16,8 @@ public sealed partial class AnyMediatorConfiguration
 
     /// <inheritdoc cref="AddRequestPreProcessor{TPreProcessor}"/>
     public AnyMediatorConfiguration AddRequestPreProcessor(Type preProcessorType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddClosedFromImplementation(
+        => AddClosedFromImplementation(
             RequestPreProcessorsToRegister, typeof(IRequestPreProcessor<>), preProcessorType, serviceLifetime);
-        return this;
-    }
 
     /// <summary>
     /// Registers a closed pre-processor under an explicit
@@ -35,11 +32,8 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddRequestPreProcessor{TServiceType, TImplementationType}"/>
     public AnyMediatorConfiguration AddRequestPreProcessor(
         Type serviceType, Type implementationType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddClosedWithExplicitService(
+        => AddClosedWithExplicitService(
             RequestPreProcessorsToRegister, typeof(IRequestPreProcessor<>), serviceType, implementationType, serviceLifetime);
-        return this;
-    }
 
     /// <summary>
     /// Registers an open generic pre-processor (e.g. <c>LoggingPreProcessor&lt;TRequest&gt;</c>) that runs
@@ -47,11 +41,8 @@ public sealed partial class AnyMediatorConfiguration
     /// </summary>
     public AnyMediatorConfiguration AddOpenRequestPreProcessor(
         Type openPreProcessorType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddOpenGenericRegistration(
+        => AddOpenGenericRegistration(
             RequestPreProcessorsToRegister, typeof(IRequestPreProcessor<>), openPreProcessorType, serviceLifetime);
-        return this;
-    }
 
     // ---------- Request post-processors ----------
 
@@ -65,11 +56,8 @@ public sealed partial class AnyMediatorConfiguration
 
     /// <inheritdoc cref="AddRequestPostProcessor{TPostProcessor}"/>
     public AnyMediatorConfiguration AddRequestPostProcessor(Type postProcessorType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddClosedFromImplementation(
+        => AddClosedFromImplementation(
             RequestPostProcessorsToRegister, typeof(IRequestPostProcessor<,>), postProcessorType, serviceLifetime);
-        return this;
-    }
 
     /// <summary>
     /// Registers a closed post-processor under an explicit
@@ -84,11 +72,8 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddRequestPostProcessor{TServiceType, TImplementationType}"/>
     public AnyMediatorConfiguration AddRequestPostProcessor(
         Type serviceType, Type implementationType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddClosedWithExplicitService(
+        => AddClosedWithExplicitService(
             RequestPostProcessorsToRegister, typeof(IRequestPostProcessor<,>), serviceType, implementationType, serviceLifetime);
-        return this;
-    }
 
     /// <summary>
     /// Registers an open generic post-processor (e.g. <c>AuditPostProcessor&lt;TRequest, TResponse&gt;</c>)
@@ -96,11 +81,8 @@ public sealed partial class AnyMediatorConfiguration
     /// </summary>
     public AnyMediatorConfiguration AddOpenRequestPostProcessor(
         Type openPostProcessorType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddOpenGenericRegistration(
+        => AddOpenGenericRegistration(
             RequestPostProcessorsToRegister, typeof(IRequestPostProcessor<,>), openPostProcessorType, serviceLifetime);
-        return this;
-    }
 
     // ---------- Request exception handlers ----------
 
@@ -115,11 +97,8 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddRequestExceptionHandler{TExceptionHandler}"/>
     public AnyMediatorConfiguration AddRequestExceptionHandler(
         Type exceptionHandlerType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddClosedFromImplementation(
+        => AddClosedFromImplementation(
             RequestExceptionHandlersToRegister, typeof(IRequestExceptionHandler<,,>), exceptionHandlerType, serviceLifetime);
-        return this;
-    }
 
     // ---------- Request exception actions ----------
 
@@ -134,9 +113,6 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddRequestExceptionAction{TExceptionAction}"/>
     public AnyMediatorConfiguration AddRequestExceptionAction(
         Type exceptionActionType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddClosedFromImplementation(
+        => AddClosedFromImplementation(
             RequestExceptionActionsToRegister, typeof(IRequestExceptionAction<,>), exceptionActionType, serviceLifetime);
-        return this;
-    }
 }

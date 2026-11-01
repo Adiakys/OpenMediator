@@ -115,102 +115,59 @@ public sealed partial class AnyMediatorConfiguration
         return this;
     }
 
-    private static void EnsureNotOpenGeneric(Type type, string paramName)
+    /// <summary>
+    /// Closed-generic registration from an implementation type: one descriptor per closed
+    /// <paramref name="genericInterface"/> the implementation declares.
+    /// </summary>
+    private AnyMediatorConfiguration AddClosedFromImplementation(
+        List<ServiceDescriptor> destination, Type genericInterface, Type implementationType, ServiceLifetime? serviceLifetime)
     {
-        if (type.IsGenericTypeDefinition)
-            throw new ArgumentException($"{type.Name} cannot be an open generic type.", paramName);
+        ThrowIfOpenGeneric(implementationType);
+
+        var serviceTypes = implementationType.GetClosedInterfaces(genericInterface);
+        if (serviceTypes.Length == 0)
+            throw new ArgumentException($"{implementationType.Name} must implement {genericInterface.Name}.", nameof(implementationType));
+
+        destination.AddRange(serviceTypes.Select(t => new ServiceDescriptor(t, implementationType, serviceLifetime ?? ServiceLifetime.Transient)));
+        return this;
     }
 
-    private static void EnsureOpenGeneric(Type type, string paramName)
+    /// <summary>
+    /// Closed-generic registration under an explicit closed <paramref name="serviceType"/> of
+    /// <paramref name="genericInterface"/>, which <paramref name="implementationType"/> must implement.
+    /// </summary>
+    private AnyMediatorConfiguration AddClosedWithExplicitService(
+        List<ServiceDescriptor> destination, Type genericInterface, Type serviceType, Type implementationType, ServiceLifetime? serviceLifetime)
     {
-        if (!type.IsGenericTypeDefinition)
-            throw new ArgumentException($"{type.Name} must be an open generic type.", paramName);
-    }
+        if (!serviceType.IsConstructedGenericType || serviceType.GetGenericTypeDefinition() != genericInterface)
+            throw new ArgumentException($"{serviceType.Name} must be a closed generic of {genericInterface.Name}.", nameof(serviceType));
 
-    private static IReadOnlyList<Type> FindClosedGenericInterfaces(Type type, Type genericTypeDefinition)
-    {
-        return type.GetInterfaces()
-            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == genericTypeDefinition)
-            .ToArray();
-    }
+        ThrowIfOpenGeneric(implementationType);
 
-    private static void EnsureImplementsGenericInterface(Type type, Type genericTypeDefinition, string paramName)
-    {
-        if (FindClosedGenericInterfaces(type, genericTypeDefinition).Count == 0)
-            throw new ArgumentException(
-                $"{type.Name} must implement {genericTypeDefinition.Name}.", paramName);
-    }
-
-    private static void EnsureClosedGenericServiceType(Type serviceType, Type expectedGenericDefinition, string paramName)
-    {
-        if (!serviceType.IsGenericType ||
-            serviceType.IsGenericTypeDefinition ||
-            serviceType.GetGenericTypeDefinition() != expectedGenericDefinition)
-        {
-            throw new ArgumentException(
-                $"{serviceType.Name} must be a closed generic of {expectedGenericDefinition.Name}.", paramName);
-        }
-    }
-
-    private static void EnsureAssignable(Type serviceType, Type implementationType, string paramName)
-    {
         if (!serviceType.IsAssignableFrom(implementationType))
-            throw new ArgumentException(
-                $"{implementationType.Name} must implement {serviceType.Name}.", paramName);
-    }
-
-    /// <summary>
-    /// Closed-generic registration from an implementation type. Finds every closed
-    /// <paramref name="genericInterface"/> the implementation declares and adds one descriptor per match.
-    /// </summary>
-    private static void AddClosedFromImplementation(
-        List<ServiceDescriptor> destination,
-        Type genericInterface,
-        Type implementationType,
-        ServiceLifetime? serviceLifetime)
-    {
-        EnsureNotOpenGeneric(implementationType, nameof(implementationType));
-        var serviceTypes = FindClosedGenericInterfaces(implementationType, genericInterface);
-        if (serviceTypes.Count == 0)
-            throw new ArgumentException(
-                $"{implementationType.Name} must implement {genericInterface.Name}.", nameof(implementationType));
-
-        foreach (var serviceType in serviceTypes)
-            destination.Add(new ServiceDescriptor(serviceType, implementationType, serviceLifetime ?? ServiceLifetime.Transient));
-    }
-
-    /// <summary>
-    /// Closed-generic registration with an explicit <paramref name="serviceType"/> (closed generic) and
-    /// implementation type. Validates the service type is the right closed shape and the implementation
-    /// is assignable.
-    /// </summary>
-    private static void AddClosedWithExplicitService(
-        List<ServiceDescriptor> destination,
-        Type genericInterface,
-        Type serviceType,
-        Type implementationType,
-        ServiceLifetime? serviceLifetime)
-    {
-        EnsureClosedGenericServiceType(serviceType, genericInterface, nameof(serviceType));
-        EnsureNotOpenGeneric(implementationType, nameof(implementationType));
-        EnsureAssignable(serviceType, implementationType, nameof(implementationType));
+            throw new ArgumentException($"{implementationType.Name} must implement {serviceType.Name}.", nameof(implementationType));
 
         destination.Add(new ServiceDescriptor(serviceType, implementationType, serviceLifetime ?? ServiceLifetime.Transient));
+        return this;
     }
 
-    /// <summary>
-    /// Open-generic registration. Validates the open generic shape and that it implements the expected
-    /// interface, then registers under the open generic interface itself.
-    /// </summary>
-    private void AddOpenGenericRegistration(
-        List<ServiceDescriptor> destination,
-        Type genericInterface,
-        Type openType,
-        ServiceLifetime? serviceLifetime)
+    /// <summary>Open-generic registration under the open <paramref name="genericInterface"/> itself.</summary>
+    private AnyMediatorConfiguration AddOpenGenericRegistration(
+        List<ServiceDescriptor> destination, Type genericInterface, Type openType, ServiceLifetime? serviceLifetime)
     {
-        EnsureOpenGeneric(openType, nameof(openType));
-        EnsureImplementsGenericInterface(openType, genericInterface, nameof(openType));
+        if (!openType.IsGenericTypeDefinition)
+            throw new ArgumentException($"{openType.Name} must be an open generic type.", nameof(openType));
+
+        if (openType.GetClosedInterfaces(genericInterface).Length == 0)
+            throw new ArgumentException($"{openType.Name} must implement {genericInterface.Name}.", nameof(openType));
 
         destination.Add(new ServiceDescriptor(genericInterface, openType, serviceLifetime ?? Lifetime));
+        return this;
+    }
+
+    private static void ThrowIfOpenGeneric(Type implementationType)
+    {
+        if (implementationType.IsGenericTypeDefinition)
+            throw new ArgumentException($"{implementationType.Name} cannot be an open generic type.", nameof(implementationType));
     }
 }

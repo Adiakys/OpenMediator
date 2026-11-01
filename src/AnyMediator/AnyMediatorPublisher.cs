@@ -1,20 +1,12 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace AnyMediator;
 
-internal sealed class AnyMediatorPublisher : IPublisher
+internal sealed class AnyMediatorPublisher(IServiceProvider services) : IPublisher
 {
     private static readonly ConcurrentDictionary<Type, Func<AnyMediatorPublisher, object, CancellationToken, Task>> ObjectPublishCache = new();
-
-    private readonly IServiceProvider _services;
-
-    public AnyMediatorPublisher(IServiceProvider services)
-    {
-        _services = services;
-    }
 
     public async Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
     {
@@ -23,7 +15,7 @@ internal sealed class AnyMediatorPublisher : IPublisher
         // Every sink runs even if an earlier one fails; the failures reach the caller afterwards, as in MediatR.
         List<Exception>? failures = null;
 
-        foreach (var sink in _services.GetServices<INotificationSink>())
+        foreach (var sink in services.GetAll<INotificationSink>())
         {
             try
             {

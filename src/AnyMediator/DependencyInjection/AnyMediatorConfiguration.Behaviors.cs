@@ -21,10 +21,7 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddBehavior{TServiceType, TImplementationType}"/>
     public AnyMediatorConfiguration AddBehavior(
         Type serviceType, Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
-    {
-        AddClosedWithExplicitService(BehaviorsToRegister, typeof(IPipelineBehavior<,>), serviceType, implementationType, serviceLifetime);
-        return this;
-    }
+        => AddClosedWithExplicitService(BehaviorsToRegister, typeof(IPipelineBehavior<,>), serviceType, implementationType, serviceLifetime);
 
     /// <summary>
     /// Registers a closed pipeline behavior under every <see cref="IPipelineBehavior{TRequest, TResponse}"/>
@@ -38,20 +35,14 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddBehavior{TImplementationType}"/>
     public AnyMediatorConfiguration AddBehavior(
         Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
-    {
-        AddClosedFromImplementation(BehaviorsToRegister, typeof(IPipelineBehavior<,>), implementationType, serviceLifetime);
-        return this;
-    }
+        => AddClosedFromImplementation(BehaviorsToRegister, typeof(IPipelineBehavior<,>), implementationType, serviceLifetime);
 
     /// <summary>
     /// Registers an open generic pipeline behavior (e.g. <c>LoggingBehavior&lt;,&gt;</c>) that applies to
     /// every request type. Lifetime defaults to the configuration's <see cref="Lifetime"/>.
     /// </summary>
     public AnyMediatorConfiguration AddOpenBehavior(Type openBehaviorType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddOpenGenericRegistration(BehaviorsToRegister, typeof(IPipelineBehavior<,>), openBehaviorType, serviceLifetime);
-        return this;
-    }
+        => AddOpenGenericRegistration(BehaviorsToRegister, typeof(IPipelineBehavior<,>), openBehaviorType, serviceLifetime);
 
     /// <summary>
     /// Bulk registration of open generic pipeline behaviors with a shared lifetime.
@@ -90,10 +81,7 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddStreamBehavior{TServiceType, TImplementationType}"/>
     public AnyMediatorConfiguration AddStreamBehavior(
         Type serviceType, Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
-    {
-        AddClosedWithExplicitService(StreamBehaviorsToRegister, typeof(IStreamPipelineBehavior<,>), serviceType, implementationType, serviceLifetime);
-        return this;
-    }
+        => AddClosedWithExplicitService(StreamBehaviorsToRegister, typeof(IStreamPipelineBehavior<,>), serviceType, implementationType, serviceLifetime);
 
     /// <summary>
     /// Registers a closed stream pipeline behavior under every
@@ -107,19 +95,13 @@ public sealed partial class AnyMediatorConfiguration
     /// <inheritdoc cref="AddStreamBehavior{TImplementationType}"/>
     public AnyMediatorConfiguration AddStreamBehavior(
         Type implementationType, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
-    {
-        AddClosedFromImplementation(StreamBehaviorsToRegister, typeof(IStreamPipelineBehavior<,>), implementationType, serviceLifetime);
-        return this;
-    }
+        => AddClosedFromImplementation(StreamBehaviorsToRegister, typeof(IStreamPipelineBehavior<,>), implementationType, serviceLifetime);
 
     /// <summary>
     /// Registers an open generic stream pipeline behavior (e.g. <c>StreamLoggingBehavior&lt;,&gt;</c>).
     /// </summary>
     public AnyMediatorConfiguration AddOpenStreamBehavior(Type openBehaviorType, ServiceLifetime? serviceLifetime = null)
-    {
-        AddOpenGenericRegistration(StreamBehaviorsToRegister, typeof(IStreamPipelineBehavior<,>), openBehaviorType, serviceLifetime);
-        return this;
-    }
+        => AddOpenGenericRegistration(StreamBehaviorsToRegister, typeof(IStreamPipelineBehavior<,>), openBehaviorType, serviceLifetime);
 
     /// <summary>
     /// Bulk registration of open generic stream pipeline behaviors with a shared lifetime.

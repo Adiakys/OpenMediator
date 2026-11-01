@@ -1,67 +1,40 @@
-using System.Reflection;
-using System.Runtime.ExceptionServices;
-
 namespace AnyMediator.NotificationSinks;
 
-internal sealed class InMemoryNotificationSink : INotificationSink
+internal sealed class InMemoryNotificationSink(IServiceProvider services, HandlerRegistry registry, INotificationPublisher publisher) : INotificationSink
 {
-    private readonly IServiceProvider _services;
-    private readonly HandlerRegistry _registry;
-    private readonly INotificationPublisher _publisher;
-
-    public InMemoryNotificationSink(IServiceProvider services, HandlerRegistry registry, INotificationPublisher publisher)
-    {
-        _services = services;
-        _registry = registry;
-        _publisher = publisher;
-    }
-
     public Task Dispatch<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
     {
-        var targets = _registry.GetNotificationTargets(notification!.GetType());
-        var handlerCalls = new List<Func<Task>>();
+        var targets = registry.GetNotificationTargets(notification!.GetType());
+
+        // Only handlers of the notification's own type, the usual case: nothing to deduplicate.
+        if (targets.Length == 1)
+            return publisher.Publish(targets[0].CreateCalls(services, notification, cancellationToken), cancellationToken);
 
         // With handlers for base types too, a class that already ran for a more specific type is skipped, so a class
         // handling both OrderPlaced and IDomainEvent runs once; several instances registered for one type all run.
-        var classesDone = targets.Length > 1 ? new HashSet<Type>() : null;
+        var handlerCalls = new List<Func<Task>>();
+        var classesDone = new HashSet<Type>();
 
         foreach (var target in targets)
         {
-            var classesOfTarget = classesDone is null ? null : new HashSet<Type>();
+            var classesOfTarget = new HashSet<Type>();
 
-            foreach (var handler in _registry.ResolveAll(_services, target))
+            foreach (var handler in target.ResolveHandlers(services))
             {
-                if (classesDone is not null)
-                {
-                    var handlerClass = handler.GetType();
-                    if (handlerClass.IsGenericType)
-                        handlerClass = handlerClass.GetGenericTypeDefinition();
+                var handlerClass = handler.GetType();
+                if (handlerClass.IsGenericType)
+                    handlerClass = handlerClass.GetGenericTypeDefinition();
 
-                    if (classesDone.Contains(handlerClass))
-                        continue;
+                if (classesDone.Contains(handlerClass))
+                    continue;
 
-                    classesOfTarget!.Add(handlerClass);
-                }
-
-                handlerCalls.Add(() => Invoke(target.HandleMethod, handler, notification, cancellationToken));
+                classesOfTarget.Add(handlerClass);
+                handlerCalls.Add(target.CreateCall(handler, notification, cancellationToken));
             }
 
-            if (classesOfTarget is not null)
-                classesDone!.UnionWith(classesOfTarget);
+            classesDone.UnionWith(classesOfTarget);
         }
 
-        return _publisher.Publish(handlerCalls, cancellationToken);
-    }
-
-    private static async Task Invoke(MethodInfo handleMethod, object handler, object notification, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await (handleMethod.Invoke(handler, [notification, cancellationToken]) as Task)!;
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null)
-        {
-            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-        }
+        return publisher.Publish(handlerCalls, cancellationToken);
     }
 }

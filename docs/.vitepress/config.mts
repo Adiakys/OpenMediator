@@ -18,6 +18,7 @@ const guide = [
   { text: 'Exception handling', link: '/guide/exception-handling' },
   { text: 'Notification sinks', link: '/guide/notification-sinks' },
   { text: 'Configuration', link: '/guide/configuration' },
+  { text: 'Performance', link: '/guide/performance' },
 ]
 
 export default defineConfig({

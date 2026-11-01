@@ -14,7 +14,7 @@ One request handler or one notification handler, no behaviors, each library with
 |---------|-------:|----------:|----------:|----------:|
 | MediatR 12.5.0 | 92 ns | 200 B | 145 ns | 288 B |
 | **AnyMediator** | **86 ns** | **96 B** | **90 ns** | **80 B** |
-| Mediator 3.0.2 (source generated) | 11 ns | 0 B | 20 ns | 0 B |
+| Mediator 3.0.2 (source generated) | 11 ns | 0 B | 18 ns | 0 B |
 
 `Send` is on par with MediatR and allocates half as much. `Publish` takes about 40% less time and allocates a quarter as much: with the default sequential strategy, handlers are awaited directly, with no delegate per handler, even though every notification goes through the [notification sink](./notification-sinks) layer.
 

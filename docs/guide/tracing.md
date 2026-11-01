@@ -53,7 +53,14 @@ The histogram also gives the count of operations and of failures, per message ty
 
 ## Cost
 
-With no listener, each operation checks two flags and continues; the [benchmarks](./performance) are unchanged. With a listener, every operation allocates its span and measures its duration, like any instrumented library.
+With no listener, each operation checks two flags and continues: the [benchmarks](./performance) are unchanged. With a listener that records everything, as an OpenTelemetry SDK sampling every request does, each span costs about half a microsecond, mostly the `Activity` object that any instrumented library creates:
+
+| Operation | Not listening | Listening |
+|-----------|--------------:|----------:|
+| `Send` (1 span) | 87 ns, 96 B | 564 ns, 704 B |
+| `Publish` with 3 handlers (4 spans) | 307 ns, 632 B | 2,310 ns, 2,872 B |
+
+Next to a database query or an HTTP call this is not measurable. With a sampling rate below 100%, requests that are not sampled create no span and only record their duration.
 
 ## Across services
 

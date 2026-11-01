@@ -1,5 +1,8 @@
 ---
-description: "MediatR alternatives for .NET compared: AnyMediator, Mediator, LiteBus, Wolverine and FreeMediator, by license, API compatibility, features and Native AOT, with MediatR's current licensing."
+# The table has seven columns: no outline column, and the content takes the full width (see custom.css).
+aside: false
+pageClass: wide-page
+description: "MediatR alternatives for .NET compared: AnyMediator, FreeMediator, Mediator, LiteBus and Wolverine, by license, API compatibility, features and Native AOT, with MediatR's current licensing."
 ---
 
 # MediatR alternatives compared
@@ -18,38 +21,38 @@ Facts as of November 2026.
 
 ## At a glance
 
-| | AnyMediator | MediatR | Mediator | LiteBus | Wolverine | FreeMediator |
+| | AnyMediator | FreeMediator | MediatR | Mediator | LiteBus | Wolverine |
 |---|---|---|---|---|---|---|
-| License | Apache-2.0 | RPL-1.5 or commercial | MIT | MIT | MIT | MIT |
-| Same API as MediatR | Yes, namespace `AnyMediator` | — | Similar names; `ValueTask`, different delegates, singleton by default | No (`ICommand`, `IQuery`, `IEvent`) | No (convention-based handlers) | Yes, namespace `FreeMediator` |
-| Dispatch | Generic wrappers built once per message type | Runtime reflection | Source generator | Reflection at registration | Code generated at startup or ahead of time | Reflection and `Reflection.Emit` |
-| Stream requests | Yes | Yes | Yes | Yes | Yes | No |
-| Pipeline behaviors | Yes | Yes | Yes | Pre/post/error stages instead | Middleware | Yes, also for notifications |
-| Pre/post-processors | Yes | Yes | Yes | Yes | Through middleware | No |
-| Exception handlers and actions | Yes | Yes | Yes | Yes | Error policies | No |
-| Notification strategies | Sequential, parallel, continue on exception, plus [sinks](./notification-sinks) | Sequential, parallel | Sequential, parallel | Sequential or parallel, by priority | Local queues | Sequential |
-| Tracing | [OpenTelemetry spans and metric](./tracing) | Not built in | In 3.1 (pre-release) | Not documented | Yes | Not documented |
-| Native AOT | Not supported | Not advertised | Yes | Not documented | In progress | Not documented (uses `Reflection.Emit`) |
-| Targets | .NET 8, .NET 10 | .NET Framework 4.6.2, .NET Standard 2.0, .NET 8–10 | .NET Standard 2.0, .NET 8 | .NET 10 | .NET 9, .NET 10 | .NET 10 |
+| License | Apache-2.0 | MIT | RPL-1.5 or commercial | MIT | MIT | MIT |
+| Same API as MediatR | Yes, namespace `AnyMediator` | Yes, namespace `FreeMediator` | — | Similar names; `ValueTask`, different delegates, singleton by default | No (`ICommand`, `IQuery`, `IEvent`) | No (convention-based handlers) |
+| Dispatch | Generic wrappers built once per message type | Reflection and `Reflection.Emit` | Runtime reflection | Source generator | Reflection at registration | Code generated at startup or ahead of time |
+| Stream requests | Yes | No | Yes | Yes | Yes | Yes |
+| Pipeline behaviors | Yes | Yes, also for notifications | Yes | Yes | Pre/post/error stages instead | Middleware |
+| Pre/post-processors | Yes | No | Yes | Yes | Yes | Through middleware |
+| Exception handlers and actions | Yes | No | Yes | Yes | Yes | Error policies |
+| Notification strategies | Sequential, parallel, continue on exception, plus [sinks](./notification-sinks) | Sequential | Sequential, parallel | Sequential, parallel | Sequential or parallel, by priority | Local queues |
+| Tracing | [OpenTelemetry spans and metric](./tracing) | Not documented | Not built in | In 3.1 (pre-release) | Not documented | Yes |
+| Native AOT | Not supported | Not documented (uses `Reflection.Emit`) | Not advertised | Yes | Not documented | In progress |
+| Targets | .NET 8, .NET 10 | .NET 10 | .NET Framework 4.6.2, .NET Standard 2.0, .NET 8–10 | .NET Standard 2.0, .NET 8 | .NET 10 | .NET 9, .NET 10 |
 
 ## Which one to choose
 
 - **Keep MediatR** if your organization qualifies for the Community edition or is happy to pay for a license and support from its author.
 - **AnyMediator** if you want to leave MediatR without touching handlers: same type names and configuration API, all of MediatR's features including streams, processors and exception handlers, Apache-2.0 with no key. Migration is [a package, a namespace and the registration call](./migrating-from-mediatr).
+- **FreeMediator** for a close MediatR clone on .NET 10 when you do not need streams, processors or exception handlers.
 - **Mediator** if raw speed or Native AOT matters most, thanks to its source generator. Expect to adapt behaviors to `ValueTask` and its delegate types.
 - **Wolverine** if you also want messaging, queues and durable outboxes: it is a framework rather than a mediator library, with its own handler conventions.
 - **LiteBus** if you prefer separate command, query and event mediators and are on .NET 10.
-- **FreeMediator** for a close MediatR clone on .NET 10 when you do not need streams, processors or exception handlers.
 
 For speed numbers measured on the same machine, see [Performance](./performance): AnyMediator is on par with MediatR for `Send` and faster for `Publish`, while Mediator's source generator is an order of magnitude faster than both.
 
 ## Sources
 
+- FreeMediator: [repository](https://github.com/steffenskov/FreeMediator), [NuGet](https://www.nuget.org/packages/FreeMediator)
 - MediatR: [license](https://github.com/LuckyPennySoftware/MediatR/blob/main/LICENSE.md), [license agreement](https://luckypennysoftware.com/license), [pricing and FAQ](https://mediatr.io/), [NuGet](https://www.nuget.org/packages/MediatR), [NuGet 12.5.0](https://www.nuget.org/packages/MediatR/12.5.0)
 - Mediator: [repository and differences from MediatR](https://github.com/martinothamar/Mediator), [NuGet](https://www.nuget.org/packages/Mediator.SourceGenerator)
 - LiteBus: [repository](https://github.com/litenova/LiteBus), [differences from MediatR](https://litebus.io/docs/migration/mediatr-differences), [NuGet](https://www.nuget.org/packages/LiteBus)
 - Wolverine: [Wolverine as mediator](https://wolverinefx.net/tutorials/mediator.html), [from MediatR](https://wolverinefx.net/introduction/from-mediatr.html), [AOT](https://wolverinefx.io/guide/aot), [NuGet](https://www.nuget.org/packages/WolverineFx)
-- FreeMediator: [repository](https://github.com/steffenskov/FreeMediator), [NuGet](https://www.nuget.org/packages/FreeMediator)
 
 ---
 

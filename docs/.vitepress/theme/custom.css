@@ -84,6 +84,17 @@
   display: none;
 }
 
+/* Pages with wide tables (pageClass: wide-page) use all the width next to the sidebar. */
+.wide-page .VPDoc .content-container {
+  max-width: none;
+}
+
+.wide-page .vp-doc :is(th, td) {
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 @media (max-width: 640px) {
   :root {
     --om-step-head: 30px;

@@ -12,7 +12,7 @@ Differences from MediatR: two handlers for the same request make `AddAnyMediator
 
 - [Getting started](https://adiakys.github.io/AnyMediator/guide/getting-started): install, register, send a request
 - [Migrating from MediatR](https://adiakys.github.io/AnyMediator/guide/migrating-from-mediatr): the three changes and every behavioral difference
-- [MediatR alternatives compared](https://adiakys.github.io/AnyMediator/guide/mediatr-alternatives): AnyMediator, MediatR, Mediator, LiteBus, Wolverine and FreeMediator side by side
+- [MediatR alternatives compared](https://adiakys.github.io/AnyMediator/guide/mediatr-alternatives): AnyMediator, FreeMediator, MediatR, Mediator, LiteBus and Wolverine side by side
 - [Requests](https://adiakys.github.io/AnyMediator/guide/requests): IRequest, IRequestHandler, ISender.Send
 - [Stream requests](https://adiakys.github.io/AnyMediator/guide/stream-requests): IStreamRequest, IAsyncEnumerable, CreateStream
 - [Notifications](https://adiakys.github.io/AnyMediator/guide/notifications): INotification, INotificationHandler, IPublisher, publisher strategies

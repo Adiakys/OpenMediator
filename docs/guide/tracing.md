@@ -57,8 +57,8 @@ With no listener, each operation checks two flags and continues: the [benchmarks
 
 | Operation | Not listening | Listening |
 |-----------|--------------:|----------:|
-| `Send` (1 span) | 87 ns, 96 B | 564 ns, 704 B |
-| `Publish` with 3 handlers (4 spans) | 307 ns, 632 B | 2,310 ns, 2,872 B |
+| `Send` (1 span) | 89 ns, 96 B | 594 ns, 704 B |
+| `Publish` with 3 handlers (4 spans) | 153 ns, 144 B | 2,374 ns, 2,776 B |
 
 Next to a database query or an HTTP call this is not measurable. With a sampling rate below 100%, requests that are not sampled create no span and only record their duration.
 

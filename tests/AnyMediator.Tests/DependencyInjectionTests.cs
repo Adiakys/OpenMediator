@@ -119,6 +119,25 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
+    public void AddAnyMediator_RegistersBuiltInNotificationPublisherAsSingletonAndCustomOneWithConfiguredLifetime()
+    {
+        CreateServices().Should().Contain(x =>
+            x.ServiceType == typeof(INotificationPublisher) && x.Lifetime == ServiceLifetime.Singleton);
+
+        CreateServices(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<DependencyInjectionTests>();
+            cfg.NotificationPublisherType = typeof(CustomNotificationPublisher);
+        }).Should().Contain(x =>
+            x.ServiceType == typeof(INotificationPublisher) && x.Lifetime == ServiceLifetime.Transient);
+    }
+
+    private sealed class CustomNotificationPublisher : INotificationPublisher
+    {
+        public Task Publish(IEnumerable<Func<Task>> handlerCalls, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    [Fact]
     public void AddAnyMediator_WithCustomNotificationPublisher_ShouldRegisterIt()
     {
         var services = CreateServices(cfg =>

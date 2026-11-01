@@ -129,6 +129,9 @@ internal abstract class NotificationTarget
 
     public abstract Func<Task> CreateCall(object handler, object notification, CancellationToken cancellationToken);
 
+    /// <summary>Runs the handlers one after another, as <c>ForeachAwaitPublisher</c> does with <see cref="CreateCalls"/>.</summary>
+    public abstract Task HandleInOrder(IServiceProvider services, object notification, CancellationToken cancellationToken);
+
     public Func<Task>[] CreateCalls(IServiceProvider services, object notification, CancellationToken cancellationToken)
     {
         var handlers = ResolveHandlers(services);
@@ -139,18 +142,33 @@ internal abstract class NotificationTarget
     }
 }
 
-internal sealed class NotificationTarget<TNotification>(HandlerRegistry.ClosedHandler[] genericHandlers) : NotificationTarget
+internal sealed class NotificationTarget<TNotification>(Type[] genericHandlers) : NotificationTarget
     where TNotification : INotification
 {
     // The container's registrations, then the open generic handlers that close to this notification type.
     public override object[] ResolveHandlers(IServiceProvider services)
     {
         object[] registered = services.GetAll<INotificationHandler<TNotification>>();
-        return genericHandlers.Length == 0 ? registered : [.. registered, .. genericHandlers.Select(h => h.Factory(services, null))];
+        return genericHandlers.Length == 0 ? registered : [.. registered, .. genericHandlers.Select(t => HandlerRegistry.CreateGeneric(services, t))];
     }
 
     public override Func<Task> CreateCall(object handler, object notification, CancellationToken cancellationToken)
         => Telemetry.IsEnabled ? CreateTracedCall(handler, notification, cancellationToken) : CreatePlainCall(handler, notification, cancellationToken);
+
+    // A single handler, the usual case, returns its own task: no state machine.
+    public override Task HandleInOrder(IServiceProvider services, object notification, CancellationToken cancellationToken)
+    {
+        var handlers = ResolveHandlers(services);
+        return handlers.Length == 1
+            ? ((INotificationHandler<TNotification>)handlers[0]).Handle((TNotification)notification, cancellationToken)
+            : HandleEach(handlers, (TNotification)notification, cancellationToken);
+    }
+
+    private static async Task HandleEach(object[] handlers, TNotification notification, CancellationToken cancellationToken)
+    {
+        foreach (var handler in handlers)
+            await ((INotificationHandler<TNotification>)handler).Handle(notification, cancellationToken);
+    }
 
     private static Func<Task> CreatePlainCall(object handler, object notification, CancellationToken cancellationToken)
         => () => ((INotificationHandler<TNotification>)handler).Handle((TNotification)notification, cancellationToken);

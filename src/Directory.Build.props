@@ -3,7 +3,7 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>2.2.0</Version>
+        <Version>2.2.1</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
         <Description>AnyMediator (formerly OpenMediatR) is a free, open-source (Apache-2.0) in-process mediator for .NET and a MediatR alternative with a MediatR-compatible API: requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions and pluggable notification sinks. Independent project, not affiliated with or endorsed by MediatR or Lucky Penny Software.</Description>

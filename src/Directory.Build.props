@@ -3,7 +3,7 @@
         <!-- NuGet Package Info -->
         <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
         <PackageId>$(MSBuildProjectName)</PackageId>
-        <Version>2.1.1</Version>
+        <Version>2.2.0</Version>
         <Authors>Andrea Ficarra</Authors>
         <Copyright>Copyright © 2026 Andrea Ficarra</Copyright>
         <Description>AnyMediator (formerly OpenMediatR) is a free, open-source (Apache-2.0) in-process mediator for .NET and a MediatR alternative with a MediatR-compatible API: requests, streaming requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions and pluggable notification sinks. Independent project, not affiliated with or endorsed by MediatR or Lucky Penny Software.</Description>
@@ -12,10 +12,12 @@
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReleaseNotes>
-2.1.1: performance. No API or behavior change.
-- Requests, streams and notifications are dispatched through generic wrappers built once per message type, without reflection. Send with no behaviors: 457 ns / 360 B in 2.1.0, 97 ns / 96 B now (MediatR 12.5: 92 ns / 200 B). Publish with one handler: 379 ns / 656 B in 2.1.0, 196 ns / 344 B now.
-- Simpler runtime library: about 20% less code.
-- Benchmarks against MediatR and Mediator: https://adiakys.github.io/AnyMediator/guide/performance
+2.2.0: tracing and metrics. No behavior change.
+- OpenTelemetry-compatible spans for every Send ("send {Request}"), CreateStream ("create_stream {Request}") and Publish ("publish {Notification}"), with one "handle {Notification}" child span per notification handler. Failures set Error status, error.type and an exception event.
+- Histogram anymediator.operation.duration (seconds) by operation, message type and error type.
+- New AnyMediatorDiagnostics.ActivitySourceName and MeterName to subscribe: AddSource(...) and AddMeter(...) in OpenTelemetry. Uses .NET's ActivitySource and Meter, no new dependency.
+- No cost when nobody listens; about 0.5 µs per span when recording.
+- Guide: https://adiakys.github.io/AnyMediator/guide/tracing
         </PackageReleaseNotes>
         <PackageTags>mediator;anymediator;openmediatr;mediatr;mediatr-alternative;cqrs;pipeline;notifications;request-response;streaming;messaging;dotnet;open-source;apache-2.0</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>

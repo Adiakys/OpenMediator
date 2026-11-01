@@ -1,5 +1,5 @@
 ---
-description: "Recover from exceptions with IRequestExceptionHandler or log them with IRequestExceptionAction in OpenMediatR, with base-type matching."
+description: "Recover from exceptions with IRequestExceptionHandler or log them with IRequestExceptionAction in AnyMediator, with base-type matching."
 ---
 
 # Exception handling

@@ -81,7 +81,7 @@ const converted = computed(() => {
   let changed = 0
   let usingEmitted = false
 
-  // Generic behaviors repeat MediatR's `where TRequest : notnull`; OpenMediatR needs the request constraint.
+  // Generic behaviors repeat MediatR's `where TRequest : notnull`; AnyMediator needs the request constraint.
   const behaviorArgs = [...source.value.matchAll(/I(Stream)?PipelineBehavior<\s*(\w+)\s*,\s*(\w+)\s*>/g)]
     .map(m => ({ stream: !!m[1], request: m[2], response: m[3] }))
 
@@ -89,13 +89,13 @@ const converted = computed(() => {
     let next: string | null = line
 
     if (rules.namespace) {
-      const using = /^(\s*)(global\s+)?using\s+MediatR(\.\w+)*\s*;/.exec(line)
+      const using = /^(\s*)(global\s+)?using\s+(Open)?MediatR(\.\w+)*\s*;/.exec(line)
       if (using) {
-        next = usingEmitted ? null : `${using[1]}${using[2] ?? ''}using OpenMediatR;`
+        next = usingEmitted ? null : `${using[1]}${using[2] ?? ''}using AnyMediator;`
         usingEmitted = true
       }
     }
-    if (next !== null && rules.registration) next = next.replace(/\bAddMediatR\s*\(/g, 'AddOpenMediatR(')
+    if (next !== null && rules.registration) next = next.replace(/\bAdd(Open)?MediatR\s*\(/g, 'AddAnyMediator(').replace(/\bOpenMediatRConfiguration\b/g, 'AnyMediatorConfiguration')
     if (next !== null && rules.licenseKey && /\bLicenseKey\s*=/.test(next)) next = null
     if (next !== null && rules.constraint) {
       for (const b of behaviorArgs) {
@@ -223,12 +223,12 @@ onBeforeUnmount(() => observer?.disconnect())
     <section class="om-wall" data-section>
       <h1 class="om-title" data-rise><span>The free mediator for .NET</span> <span>with the MediatR API</span></h1>
       <p class="om-sub" data-rise>
-        OpenMediatR runs your requests, notifications and pipeline behaviors in-process.
+        AnyMediator runs your requests, notifications and pipeline behaviors in-process.
         Apache-2.0, with no license key and no revenue limit.
       </p>
       <div class="om-install" data-rise>
-        <code>dotnet add package OpenMediatR</code>
-        <button class="om-button" type="button" @click="copy('dotnet add package OpenMediatR', 'hero')">
+        <code>dotnet add package AnyMediator</code>
+        <button class="om-button" type="button" @click="copy('dotnet add package AnyMediator', 'hero')">
           {{ copied === 'hero' ? 'Copied' : 'Copy' }}
         </button>
       </div>
@@ -241,10 +241,10 @@ onBeforeUnmount(() => observer?.disconnect())
           <div class="om-door-pic" data-ui aria-hidden="true">
             <div class="om-file">Program.cs</div>
             <pre class="om-mini"><code><span class="d-del">- using MediatR;</span>
-<span class="d-add">+ using OpenMediatR;</span>
+<span class="d-add">+ using AnyMediator;</span>
 
 <span class="d-del">- services.AddMediatR(cfg =></span>
-<span class="d-add">+ services.AddOpenMediatR(cfg =></span>
+<span class="d-add">+ services.AddAnyMediator(cfg =></span>
   {
 <span class="d-del">-   cfg.LicenseKey = "…";</span>
     cfg.RegisterServices…
@@ -265,7 +265,7 @@ onBeforeUnmount(() => observer?.disconnect())
           <div class="om-door-pic" data-ui aria-hidden="true">
             <div class="om-file">Terminal</div>
             <pre class="om-mini"><code><span class="d-prompt">$</span> dotnet add package
-  OpenMediatR</code></pre>
+  AnyMediator</code></pre>
             <div class="om-file">GetUser.cs</div>
             <pre class="om-mini"><code><span class="t-kw">record</span> GetUser(<span class="t-kw">int</span> Id)
   : IRequest&lt;User&gt;;
@@ -274,7 +274,7 @@ onBeforeUnmount(() => observer?.disconnect())
   : IRequestHandler&lt;
       GetUser, User&gt;</code></pre>
             <div class="om-file">Program.cs</div>
-            <pre class="om-mini"><code>services.AddOpenMediatR(cfg =>
+            <pre class="om-mini"><code>services.AddAnyMediator(cfg =>
   cfg.RegisterServices…);</code></pre>
           </div>
           <span class="om-door-name">I’m starting fresh</span>
@@ -288,7 +288,7 @@ onBeforeUnmount(() => observer?.disconnect())
       <div class="om-column">
         <h2 class="om-h2" data-rise>Try the migration</h2>
         <p class="om-text" data-rise>
-          Pick a file from a MediatR project, or paste your own. The changes OpenMediatR needs
+          Pick a file from a MediatR project, or paste your own. The changes AnyMediator needs
           are applied as you type, in your browser.
         </p>
       </div>
@@ -346,7 +346,7 @@ onBeforeUnmount(() => observer?.disconnect())
       </div>
       <p class="om-column om-after" data-rise>
         Then swap the package: <code>dotnet remove package MediatR</code> and
-        <code>dotnet add package OpenMediatR</code>.
+        <code>dotnet add package AnyMediator</code>.
       </p>
     </section>
 
@@ -358,14 +358,14 @@ onBeforeUnmount(() => observer?.disconnect())
         <div class="om-step" data-rise>
           <p class="om-step-say">First, install the package.</p>
           <div class="om-call">
-            <pre><code><span class="d-prompt">$</span> dotnet add package OpenMediatR</code></pre>
-            <button class="om-chip" type="button" @click="copy('dotnet add package OpenMediatR', 'install')">
+            <pre><code><span class="d-prompt">$</span> dotnet add package AnyMediator</code></pre>
+            <button class="om-chip" type="button" @click="copy('dotnet add package AnyMediator', 'install')">
               {{ copied === 'install' ? 'Copied' : 'Copy' }}
             </button>
           </div>
           <div class="om-response" data-ui>
-            <pre><code>info : Adding PackageReference for package 'OpenMediatR' into project 'MyApp.csproj'.
-info : PackageReference for package 'OpenMediatR' version '1.5.0' added to file 'MyApp.csproj'.</code></pre>
+            <pre><code>info : Adding PackageReference for package 'AnyMediator' into project 'MyApp.csproj'.
+info : PackageReference for package 'AnyMediator' version '2.0.0' added to file 'MyApp.csproj'.</code></pre>
           </div>
         </div>
 
@@ -373,7 +373,7 @@ info : PackageReference for package 'OpenMediatR' version '1.5.0' added to file 
           <p class="om-step-say">Then, register it with your services.</p>
           <div class="om-call">
             <pre><code><span v-for="(l, i) in [
-              'builder.Services.AddOpenMediatR(cfg =>',
+              'builder.Services.AddAnyMediator(cfg =>',
               '{',
               '    cfg.RegisterServicesFromAssemblyContaining<Program>();',
               '    cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));',
@@ -452,18 +452,18 @@ info : PackageReference for package 'OpenMediatR' version '1.5.0' added to file 
         <p class="om-close-line" data-rise>Install it, register it, and keep the handlers you already wrote.</p>
         <div class="om-actions" data-rise>
           <a class="om-button" :href="withBase('/guide/getting-started')">Read the guide</a>
-          <a class="om-link" href="https://github.com/Adiakys/OpenMediator">View the source on GitHub</a>
+          <a class="om-link" href="https://github.com/Adiakys/AnyMediator">View the source on GitHub</a>
         </div>
       </div>
     </section>
 
     <footer class="om-foot">
-      <span class="om-foot-what">In-process mediator for .NET</span>
+      <span class="om-foot-what">In-process mediator for .NET. Not affiliated with MediatR.</span>
       <nav class="om-foot-links" aria-label="Footer">
         <a :href="withBase('/guide/getting-started')">Guide</a>
         <a :href="withBase('/guide/migrating-from-mediatr')">Migration</a>
-        <a href="https://www.nuget.org/packages/OpenMediatR">NuGet</a>
-        <a href="https://github.com/Adiakys/OpenMediator">GitHub</a>
+        <a href="https://www.nuget.org/packages/AnyMediator">NuGet</a>
+        <a href="https://github.com/Adiakys/AnyMediator">GitHub</a>
         <a :href="withBase('/llms.txt')">llms.txt</a>
       </nav>
       <span class="om-foot-legal">© 2026 Andrea Ficarra. Apache-2.0</span>

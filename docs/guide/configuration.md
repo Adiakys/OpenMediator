@@ -1,13 +1,13 @@
 ---
-description: "Every OpenMediatR configuration option for AddOpenMediatR: assembly scanning, lifetimes, behaviors, processors, exception handling and notification publishers."
+description: "Every AnyMediator configuration option for AddAnyMediator: assembly scanning, lifetimes, behaviors, processors, exception handling and notification publishers."
 ---
 
 # Configuration
 
-All configuration goes through the callback of `AddOpenMediatR`:
+All configuration goes through the callback of `AddAnyMediator`:
 
 ```csharp
-services.AddOpenMediatR(cfg =>
+services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<Program>();
     cfg.Lifetime = ServiceLifetime.Scoped;
@@ -16,7 +16,7 @@ services.AddOpenMediatR(cfg =>
 });
 ```
 
-Calling `AddOpenMediatR` more than once is safe: services and behaviors are not registered twice.
+Calling `AddAnyMediator` more than once is safe: services and behaviors are not registered twice.
 
 ## Assemblies
 

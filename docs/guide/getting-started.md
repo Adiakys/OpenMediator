@@ -1,29 +1,29 @@
 ---
-description: "Install OpenMediatR from NuGet, register it with AddOpenMediatR and send your first request through ISender."
+description: "Install AnyMediator from NuGet, register it with AddAnyMediator and send your first request through ISender."
 ---
 
 # Getting started
 
-OpenMediatR is an in-process mediator for .NET 8 and .NET 10. A caller sends a message to `ISender` or `IPublisher`; OpenMediatR finds the handler in the dependency injection container and runs it, through any pipeline behaviors you registered.
+AnyMediator is an in-process mediator for .NET 8 and .NET 10. A caller sends a message to `ISender` or `IPublisher`; AnyMediator finds the handler in the dependency injection container and runs it, through any pipeline behaviors you registered.
 
 ## Install
 
 ```bash
-dotnet add package OpenMediatR
+dotnet add package AnyMediator
 ```
 
-The package brings in `OpenMediatR.Abstractions`, which holds only the interfaces. Class libraries that define requests and handlers can reference `OpenMediatR.Abstractions` alone.
+The package brings in `AnyMediator.Abstractions`, which holds only the interfaces. Class libraries that define requests and handlers can reference `AnyMediator.Abstractions` alone.
 
 ## Register
 
-Call `AddOpenMediatR` on your `IServiceCollection` and tell it which assemblies to scan:
+Call `AddAnyMediator` on your `IServiceCollection` and tell it which assemblies to scan:
 
 ```csharp
-using OpenMediatR;
+using AnyMediator;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenMediatR(cfg =>
+builder.Services.AddAnyMediator(cfg =>
 {
     cfg.RegisterServicesFromAssemblyContaining<Program>();
 });

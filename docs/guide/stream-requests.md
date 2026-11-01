@@ -1,5 +1,5 @@
 ---
-description: "Stream results from a handler as IAsyncEnumerable with IStreamRequest and ISender.CreateStream in OpenMediatR."
+description: "Stream results from a handler as IAsyncEnumerable with IStreamRequest and ISender.CreateStream in AnyMediator."
 ---
 
 # Stream requests

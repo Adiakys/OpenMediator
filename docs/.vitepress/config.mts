@@ -2,9 +2,9 @@ import { defineConfig } from 'vitepress'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const siteUrl = 'https://adiakys.github.io/OpenMediator/'
+const siteUrl = 'https://adiakys.github.io/AnyMediator/'
 const description =
-  'OpenMediatR is a free, open-source (Apache-2.0) MediatR alternative for .NET with a MediatR-compatible API: requests, notifications, streams, pipeline behaviors, processors and exception handlers.'
+  'AnyMediator is a free, open-source (Apache-2.0) MediatR alternative for .NET with a MediatR-compatible API: requests, notifications, streams, pipeline behaviors, processors and exception handlers.'
 
 // Order matters: it is the sidebar order and the order of llms-full.txt.
 const guide = [
@@ -22,30 +22,30 @@ const guide = [
 
 export default defineConfig({
   lang: 'en-US',
-  title: 'OpenMediatR',
-  titleTemplate: ':title | OpenMediatR, the free MediatR alternative for .NET',
+  title: 'AnyMediator',
+  titleTemplate: ':title | AnyMediator, the free MediatR alternative for .NET',
   description,
-  base: '/OpenMediator/',
+  base: '/AnyMediator/',
   cleanUrls: true,
   lastUpdated: true,
   sitemap: { hostname: siteUrl },
 
   head: [
-    ['link', { rel: 'icon', type: 'image/png', href: '/OpenMediator/icon.png' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/AnyMediator/icon.png' }],
     ['link', { rel: 'preconnect', href: 'https://api.fontshare.com' }],
     ['link', { rel: 'preconnect', href: 'https://cdn.fontshare.com', crossorigin: '' }],
     ['link', { rel: 'stylesheet', href: 'https://api.fontshare.com/v2/css?f[]=switzer@400,500&display=swap' }],
     ['meta', { name: 'keywords', content: 'MediatR alternative, free MediatR, mediator, .NET, C#, CQRS, pipeline behavior, Apache-2.0' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'OpenMediatR' }],
+    ['meta', { property: 'og:site_name', content: 'AnyMediator' }],
     ['meta', { property: 'og:image', content: `${siteUrl}icon.png` }],
     ['meta', { name: 'twitter:card', content: 'summary' }],
     ['script', { type: 'application/ld+json' }, JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'SoftwareSourceCode',
-      name: 'OpenMediatR',
+      name: 'AnyMediator',
       description,
-      codeRepository: 'https://github.com/Adiakys/OpenMediator',
+      codeRepository: 'https://github.com/Adiakys/AnyMediator',
       programmingLanguage: 'C#',
       runtimePlatform: '.NET',
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
@@ -58,7 +58,7 @@ export default defineConfig({
   transformPageData(pageData) {
     const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
     const url = siteUrl + path
-    const title = pageData.frontmatter.title ?? pageData.title ?? 'OpenMediatR'
+    const title = pageData.frontmatter.title ?? pageData.title ?? 'AnyMediator'
     const desc = pageData.frontmatter.description ?? description
     pageData.frontmatter.head ??= []
     pageData.frontmatter.head.push(
@@ -75,7 +75,7 @@ export default defineConfig({
       const body = readFileSync(join(srcDir, `${link}.md`), 'utf8').replace(/^---[\s\S]*?---\n/, '')
       return `<!-- ${siteUrl}${link.slice(1)} -->\n${body.trim()}`
     })
-    const header = `# OpenMediatR\n\n> ${description}\n\nPackage: https://www.nuget.org/packages/OpenMediatR\nSource: https://github.com/Adiakys/OpenMediator\n`
+    const header = `# AnyMediator\n\n> ${description}\n\nPackage: https://www.nuget.org/packages/AnyMediator\nSource: https://github.com/Adiakys/AnyMediator\n`
     writeFileSync(join(outDir, 'llms-full.txt'), [header, ...parts].join('\n\n'))
   },
 
@@ -88,13 +88,13 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/getting-started', activeMatch: '/guide/' },
       { text: 'Migrate from MediatR', link: '/guide/migrating-from-mediatr' },
-      { text: 'NuGet', link: 'https://www.nuget.org/packages/OpenMediatR' },
+      { text: 'NuGet', link: 'https://www.nuget.org/packages/AnyMediator' },
     ],
     sidebar: { '/guide/': [{ text: 'Guide', items: guide }] },
-    socialLinks: [{ icon: 'github', link: 'https://github.com/Adiakys/OpenMediator' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/Adiakys/AnyMediator' }],
     search: { provider: 'local' },
     editLink: {
-      pattern: 'https://github.com/Adiakys/OpenMediator/edit/main/docs/:path',
+      pattern: 'https://github.com/Adiakys/AnyMediator/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
     outline: { level: [2, 3] },

@@ -1,12 +1,12 @@
 ---
-description: "Deliver OpenMediatR notifications beyond in-process handlers, to message brokers or webhooks, by implementing INotificationSink."
+description: "Deliver AnyMediator notifications beyond in-process handlers, to message brokers or webhooks, by implementing INotificationSink."
 ---
 
 # Notification sinks
 
 A sink is a delivery channel for notifications. `IPublisher.Publish` passes each notification to every registered `INotificationSink`, one after another.
 
-The default sink, registered by `AddOpenMediatR`, resolves the `INotificationHandler<T>` implementations from the container and runs them with the configured [notification publisher](./notifications#how-handlers-run).
+The default sink, registered by `AddAnyMediator`, resolves the `INotificationHandler<T>` implementations from the container and runs them with the configured [notification publisher](./notifications#how-handlers-run).
 
 ## Add a channel
 
@@ -30,7 +30,7 @@ public sealed class ServiceBusSink(ServiceBusSender sender) : INotificationSink
 Register it next to the default one:
 
 ```csharp
-services.AddOpenMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+services.AddAnyMediator(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
 services.AddSingleton<INotificationSink, ServiceBusSink>();
 ```
 

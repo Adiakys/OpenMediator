@@ -38,7 +38,9 @@ Now every `Publish` runs the in-process handlers and also sends the message.
 
 ## Failures
 
-Sinks are isolated from each other. If one throws, `Publish` logs the exception with the sink and notification type names, then moves on to the next sink. `Publish` itself does not throw.
+Sinks are isolated from each other: if one throws, the next ones still run. Once all sinks have run, `Publish` re-throws the failure, or an `AggregateException` with every failure when several sinks threw.
+
+Inside a sink, `TNotification` is the type the caller published with; `Publish(object)` uses the runtime type. When a notification is published through a variable of a base type or interface, `TNotification` is that type: use `notification.GetType()` to read the concrete one.
 
 ## Filtering
 

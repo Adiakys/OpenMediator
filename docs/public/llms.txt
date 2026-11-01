@@ -2,11 +2,11 @@
 
 > AnyMediator is a free, open-source (Apache-2.0) in-process mediator for .NET 8 and .NET 10, and an alternative to MediatR with a MediatR-compatible API. It supports requests, stream requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions and pluggable notification sinks.
 
-Install with `dotnet add package AnyMediator`, register with `services.AddAnyMediator(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>())`, and use the single `AnyMediator` namespace. To migrate from MediatR: replace the package, replace `using MediatR;` with `using AnyMediator;`, replace `AddMediatR` with `AddAnyMediator`, remove `LicenseKey`, and change behavior constraints from `where TRequest : notnull` to `where TRequest : IRequest<TResponse>`.
+Install with `dotnet add package AnyMediator`, register with `services.AddAnyMediator(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>())`, and use the single `AnyMediator` namespace. To migrate from MediatR: replace the package, replace `using MediatR;` with `using AnyMediator;`, replace `AddMediatR` with `AddAnyMediator`, and remove `LicenseKey`. Interfaces, method shapes, behavior constraints (`where TRequest : notnull`), `Send(object)`, `Publish(object)`, handlers for base notification types and generic handlers work as in MediatR.
 
 AnyMediator was published as OpenMediatR up to version 1.5.0; to upgrade, replace the OpenMediatR package with AnyMediator, `using OpenMediatR;` with `using AnyMediator;` and `AddOpenMediatR` with `AddAnyMediator`. AnyMediator is not affiliated with MediatR or Lucky Penny Software.
 
-Key differences from MediatR: `IPublisher.Publish` logs handler failures instead of re-throwing them; `Send(object)` and `Publish(object)` do not exist; pipeline behaviors run in registration order (first registered is outermost).
+Differences from MediatR: two handlers for the same request make `AddAnyMediator` throw instead of using the first one; `Publish` also delivers to any registered `INotificationSink` (message brokers, webhooks) and, when several sinks fail, throws an `AggregateException`. Pipeline behaviors run in registration order (first registered is outermost), as in MediatR.
 
 ## Docs
 

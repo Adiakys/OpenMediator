@@ -35,9 +35,16 @@ Calling `AddAnyMediator` more than once is safe: services and behaviors are not 
 | `NotificationPublisherType` | `ForeachAwaitPublisher` | how notification handlers run |
 | `NotificationPublisher` | `null` | a ready instance; wins over `NotificationPublisherType` |
 | `AutoRegisterRequestProcessors` | `false` | scan for pre- and post-processors |
+| `TypeEvaluator` | every type | `Func<Type, bool>` that decides which scanned types are registered |
 | `RequestExceptionActionProcessorStrategy` | `ApplyForUnhandledExceptions` | whether exception actions see recovered exceptions |
 
 Request, stream and notification handlers, processors, exception handlers and actions found by scanning are always transient.
+
+To leave a type out of scanning, for example a handler that only tests use:
+
+```csharp
+cfg.TypeEvaluator = type => type.Namespace?.EndsWith(".Testing") != true;
+```
 
 ## Behaviors
 

@@ -1,21 +1,10 @@
-using System.Collections.Concurrent;
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace AnyMediator.RequestProcessors;
 
-internal sealed class RequestExceptionProcessorBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+internal sealed class RequestExceptionProcessorBehavior<TRequest, TResponse>(IServiceProvider services) : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
-    private static readonly ConcurrentDictionary<Type, MethodInfo> HandleMethodCache = new();
-
-    private readonly IServiceProvider _services;
-
-    public RequestExceptionProcessorBehavior(IServiceProvider services)
-    {
-        _services = services;
-    }
-
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
         try
@@ -30,19 +19,12 @@ internal sealed class RequestExceptionProcessorBehavior<TRequest, TResponse> : I
             // for a base type (e.g. Exception) still runs when a derived type is thrown.
             for (var type = exception.GetType(); type != null && typeof(Exception).IsAssignableFrom(type); type = type.BaseType)
             {
-                var handlerInterface = typeof(IRequestExceptionHandler<,,>)
-                    .MakeGenericType(typeof(TRequest), typeof(TResponse), type);
+                var handlerInterface = typeof(IRequestExceptionHandler<,,>).MakeGenericType(typeof(TRequest), typeof(TResponse), type);
+                var handle = handlerInterface.GetMethod("Handle")!;
 
-                var handlers = (IEnumerable<object>?)_services.GetService(
-                    typeof(IEnumerable<>).MakeGenericType(handlerInterface));
-
-                if (handlers is null) continue;
-
-                var handleMethod = HandleMethodCache.GetOrAdd(handlerInterface, t => t.GetMethod("Handle")!);
-
-                foreach (var handler in handlers)
+                foreach (var handler in services.GetAll(handlerInterface))
                 {
-                    await ((Task)handleMethod.Invoke(handler, [request, exception, state, cancellationToken])!);
+                    await (Task)handle.Invoke(handler, BindingFlags.DoNotWrapExceptions, null, [request, exception, state, cancellationToken], null)!;
                     if (state.Handled) return state.Response!;
                 }
             }

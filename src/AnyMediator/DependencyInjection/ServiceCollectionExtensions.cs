@@ -35,7 +35,7 @@ public static class ServiceCollectionExtensions
         configure(config);
 
         var scannedTypes = ScanTypes(config);
-        var candidateTypes = scannedTypes.Where(t => !t.IsGenericTypeDefinition).ToArray();
+        var closedTypes = scannedTypes.Where(t => !t.IsGenericTypeDefinition).ToArray();
 
         RegisterHandlers(services, HandlerRegistry.GetOrAdd(services), scannedTypes);
 
@@ -43,15 +43,27 @@ public static class ServiceCollectionExtensions
         // Exception handler/action wrappers go first so they catch exceptions thrown anywhere in the
         // pipeline; user behaviors follow in the order they were added; pre/post-processor wrappers go
         // last so they end up innermost (closest to the handler).
-        ConfigureRequestExceptionHandlers(services, config, candidateTypes);
+        // Exception handlers and actions are always scanned, as in MediatR; processors only when opted in.
+        var hasExceptionHandler = RegisterScanned(services, closedTypes, typeof(IRequestExceptionHandler<,,>), config.RequestExceptionHandlersToRegister);
+        var hasExceptionAction = RegisterScanned(services, closedTypes, typeof(IRequestExceptionAction<,>), config.RequestExceptionActionsToRegister);
 
-        foreach (var descriptor in config.BehaviorsToRegister)
-            services.TryAddEnumerable(descriptor);
+        // By default the action wrapper is outer: a handler that recovers via SetHandled hides the exception from the
+        // actions. With ApplyForAllExceptions the handler wrapper is outer, so actions always see the exception first.
+        var handlerWrapper = (typeof(RequestExceptionProcessorBehavior<,>), hasExceptionHandler);
+        var actionWrapper = (typeof(RequestExceptionActionProcessorBehavior<,>), hasExceptionAction);
+        AddWrappers(services, config.Lifetime,
+            config.RequestExceptionActionProcessorStrategy == RequestExceptionActionProcessorStrategy.ApplyForAllExceptions
+                ? [handlerWrapper, actionWrapper]
+                : [actionWrapper, handlerWrapper]);
 
-        foreach (var descriptor in config.StreamBehaviorsToRegister)
-            services.TryAddEnumerable(descriptor);
+        services.TryAddEnumerable(config.BehaviorsToRegister);
+        services.TryAddEnumerable(config.StreamBehaviorsToRegister);
 
-        ConfigureRequestProcessors(services, config, candidateTypes);
+        var processorTypes = config.AutoRegisterRequestProcessors ? closedTypes : [];
+        var hasPreProcessor = RegisterScanned(services, processorTypes, typeof(IRequestPreProcessor<>), config.RequestPreProcessorsToRegister);
+        var hasPostProcessor = RegisterScanned(services, processorTypes, typeof(IRequestPostProcessor<,>), config.RequestPostProcessorsToRegister);
+        AddWrappers(services, config.Lifetime,
+            [(typeof(RequestPostProcessorBehavior<,>), hasPostProcessor), (typeof(RequestPreProcessorBehavior<,>), hasPreProcessor)]);
 
         var lifetime = config.Lifetime;
         services.TryAdd(new ServiceDescriptor(typeof(ISender), typeof(AnyMediatorSender), lifetime));
@@ -70,7 +82,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static IReadOnlyList<Type> ScanTypes(AnyMediatorConfiguration config)
+    private static Type[] ScanTypes(AnyMediatorConfiguration config)
     {
         return config.AssembliesToRegister
             .Distinct()
@@ -79,14 +91,13 @@ public static class ServiceCollectionExtensions
             .ToArray();
     }
 
-    private static void RegisterHandlers(IServiceCollection services, HandlerRegistry registry, IReadOnlyList<Type> scannedTypes)
+    private static void RegisterHandlers(IServiceCollection services, HandlerRegistry registry, Type[] scannedTypes)
     {
         foreach (var type in scannedTypes)
         {
             foreach (var iface in type.GetInterfaces())
             {
-                if (!iface.IsGenericType) continue;
-                var def = iface.GetGenericTypeDefinition();
+                var def = iface.IsGenericType ? iface.GetGenericTypeDefinition() : null;
 
                 if (def != typeof(IRequestHandler<,>) && def != typeof(IStreamRequestHandler<,>) && def != typeof(INotificationHandler<>))
                     continue;
@@ -95,10 +106,8 @@ public static class ServiceCollectionExtensions
                 if (type.IsGenericTypeDefinition)
                 {
                     registry.AddGenericHandler(type, iface);
-                    continue;
                 }
-
-                if (def == typeof(INotificationHandler<>))
+                else if (def == typeof(INotificationHandler<>))
                 {
                     registry.AddNotificationHandler(iface);
                     services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
@@ -112,128 +121,33 @@ public static class ServiceCollectionExtensions
         }
     }
 
-    private static void ConfigureRequestProcessors(
-        IServiceCollection services, AnyMediatorConfiguration config, IReadOnlyList<Type> candidateTypes)
+    /// <summary>
+    /// Registers every scanned implementation of <paramref name="openInterface"/>, then the explicit registrations.
+    /// Returns whether any exist, which decides if the matching wrapper behavior is needed.
+    /// </summary>
+    private static bool RegisterScanned(
+        IServiceCollection services, Type[] types, Type openInterface, List<ServiceDescriptor> explicitDescriptors)
     {
-        var (hasPreFromScan, hasPostFromScan) = config.AutoRegisterRequestProcessors
-            ? ScanRequestProcessors(services, candidateTypes)
-            : (false, false);
-
-        foreach (var descriptor in config.RequestPreProcessorsToRegister)
-            services.TryAddEnumerable(descriptor);
-
-        foreach (var descriptor in config.RequestPostProcessorsToRegister)
-            services.TryAddEnumerable(descriptor);
-
-        var hasPreProcessor = hasPreFromScan || config.RequestPreProcessorsToRegister.Count > 0;
-        var hasPostProcessor = hasPostFromScan || config.RequestPostProcessorsToRegister.Count > 0;
-
-        if (hasPostProcessor)
-            services.TryAddEnumerable(ServiceDescriptor.Describe(
-                typeof(IPipelineBehavior<,>), typeof(RequestPostProcessorBehavior<,>), config.Lifetime));
-
-        if (hasPreProcessor)
-            services.TryAddEnumerable(ServiceDescriptor.Describe(
-                typeof(IPipelineBehavior<,>), typeof(RequestPreProcessorBehavior<,>), config.Lifetime));
-    }
-
-    private static (bool HasPreProcessor, bool HasPostProcessor) ScanRequestProcessors(
-        IServiceCollection services, IReadOnlyList<Type> candidateTypes)
-    {
-        var hasPreProcessor = false;
-        var hasPostProcessor = false;
-
-        foreach (var type in candidateTypes)
+        var found = false;
+        foreach (var type in types)
         {
-            foreach (var iface in type.GetInterfaces())
+            foreach (var iface in type.GetClosedInterfaces(openInterface))
             {
-                if (!iface.IsGenericType) continue;
-                var def = iface.GetGenericTypeDefinition();
-
-                if (def == typeof(IRequestPreProcessor<>))
-                {
-                    services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
-                    hasPreProcessor = true;
-                }
-                else if (def == typeof(IRequestPostProcessor<,>))
-                {
-                    services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
-                    hasPostProcessor = true;
-                }
+                services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
+                found = true;
             }
         }
 
-        return (hasPreProcessor, hasPostProcessor);
+        services.TryAddEnumerable(explicitDescriptors);
+        return found || explicitDescriptors.Count > 0;
     }
 
-    private static void ConfigureRequestExceptionHandlers(
-        IServiceCollection services, AnyMediatorConfiguration config, IReadOnlyList<Type> candidateTypes)
+    private static void AddWrappers(IServiceCollection services, ServiceLifetime lifetime, (Type Behavior, bool Needed)[] wrappers)
     {
-        // Auto-scan is unconditional, mirroring MediatR (no opt-in flag for exception handlers/actions).
-        var (hasHandlerFromScan, hasActionFromScan) = ScanRequestExceptionHandlers(services, candidateTypes);
-
-        foreach (var descriptor in config.RequestExceptionHandlersToRegister)
-            services.TryAddEnumerable(descriptor);
-
-        foreach (var descriptor in config.RequestExceptionActionsToRegister)
-            services.TryAddEnumerable(descriptor);
-
-        var hasHandler = hasHandlerFromScan || config.RequestExceptionHandlersToRegister.Count > 0;
-        var hasAction = hasActionFromScan || config.RequestExceptionActionsToRegister.Count > 0;
-
-        // Wrapper order is determined by RequestExceptionActionProcessorStrategy (first registered = outer):
-        //  - ApplyForUnhandledExceptions (default): handler wrapper inner, action wrapper outer.
-        //    Recovery via SetHandled suppresses the exception before it reaches the action wrapper.
-        //  - ApplyForAllExceptions: action wrapper inner, handler wrapper outer.
-        //    Action always sees the exception first; handler may then recover.
-        if (config.RequestExceptionActionProcessorStrategy == RequestExceptionActionProcessorStrategy.ApplyForAllExceptions)
+        foreach (var (behavior, needed) in wrappers)
         {
-            if (hasHandler)
-                services.TryAddEnumerable(ServiceDescriptor.Describe(
-                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
-
-            if (hasAction)
-                services.TryAddEnumerable(ServiceDescriptor.Describe(
-                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
+            if (needed)
+                services.TryAddEnumerable(ServiceDescriptor.Describe(typeof(IPipelineBehavior<,>), behavior, lifetime));
         }
-        else
-        {
-            if (hasAction)
-                services.TryAddEnumerable(ServiceDescriptor.Describe(
-                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionActionProcessorBehavior<,>), config.Lifetime));
-
-            if (hasHandler)
-                services.TryAddEnumerable(ServiceDescriptor.Describe(
-                    typeof(IPipelineBehavior<,>), typeof(RequestExceptionProcessorBehavior<,>), config.Lifetime));
-        }
-    }
-
-    private static (bool HasHandler, bool HasAction) ScanRequestExceptionHandlers(
-        IServiceCollection services, IReadOnlyList<Type> candidateTypes)
-    {
-        var hasHandler = false;
-        var hasAction = false;
-
-        foreach (var type in candidateTypes)
-        {
-            foreach (var iface in type.GetInterfaces())
-            {
-                if (!iface.IsGenericType) continue;
-                var def = iface.GetGenericTypeDefinition();
-
-                if (def == typeof(IRequestExceptionHandler<,,>))
-                {
-                    services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
-                    hasHandler = true;
-                }
-                else if (def == typeof(IRequestExceptionAction<,>))
-                {
-                    services.TryAddEnumerable(ServiceDescriptor.Transient(iface, type));
-                    hasAction = true;
-                }
-            }
-        }
-
-        return (hasHandler, hasAction);
     }
 }

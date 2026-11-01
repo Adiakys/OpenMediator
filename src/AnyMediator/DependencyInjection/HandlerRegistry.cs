@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AnyMediator;
@@ -53,22 +52,27 @@ internal sealed class HandlerRegistry
 
     /// <summary>
     /// The handler of a request or stream request: the container's registration, otherwise the single open generic
-    /// handler that closes to <paramref name="serviceType"/>, otherwise <see langword="null"/>.
+    /// handler that closes to <typeparamref name="THandler"/>.
     /// </summary>
-    internal object? ResolveSingle(IServiceProvider services, Type serviceType)
+    internal THandler GetRequired<THandler>(IServiceProvider services)
     {
-        var registered = services.GetService(serviceType);
-        if (registered is not null)
+        if (services.GetService(typeof(THandler)) is THandler registered)
             return registered;
 
-        var candidates = Close(serviceType);
+        var handlerType = typeof(THandler);
+        var requestType = handlerType.GetGenericArguments()[0];
+        var candidates = Close(handlerType);
 
         return candidates.Length switch
         {
-            0 => null,
-            1 => candidates[0].Factory(services, null),
+            1 => (THandler)candidates[0].Factory(services, null),
+            // Spell out the fix: callers (and coding agents) act on the message without reading the source.
+            0 => throw new InvalidOperationException(
+                $"No handler registered for request '{requestType.FullName}'. Expected a non-abstract class implementing " +
+                $"{handlerType.GetGenericTypeDefinition().Name.Split('`')[0]}<{string.Join(", ", handlerType.GetGenericArguments().Select(t => t.Name))}> " +
+                "in an assembly scanned by AddAnyMediator: add cfg.RegisterServicesFromAssemblyContaining<T>() with T declared in the handler's assembly."),
             _ => throw new InvalidOperationException(
-                $"Request '{serviceType.GetGenericArguments()[0].FullName}' matches more than one generic handler: " +
+                $"Request '{requestType.FullName}' matches more than one generic handler: " +
                 $"{string.Join(", ", candidates.Select(c => $"'{c.Implementation.FullName}'"))}. A request has exactly one handler."),
         };
     }
@@ -78,41 +82,27 @@ internal sealed class HandlerRegistry
     /// first: the type itself, then base classes and interfaces that have scanned or generic handlers.
     /// </summary>
     internal NotificationTarget[] GetNotificationTargets(Type notificationType)
+        => _notificationTargets.GetOrAdd(notificationType, static (type, registry) => registry.CreateNotificationTargets(type), this);
+
+    private NotificationTarget[] CreateNotificationTargets(Type notificationType)
     {
-        return _notificationTargets.GetOrAdd(notificationType, type =>
+        var types = new List<Type>();
+        for (var type = notificationType; type is not null && typeof(INotification).IsAssignableFrom(type); type = type.BaseType)
+            types.Add(type);
+        types.AddRange(notificationType.GetInterfaces().Where(i => typeof(INotification).IsAssignableFrom(i)));
+
+        var targets = new List<NotificationTarget>();
+        foreach (var type in types)
         {
-            var baseClasses = new List<Type>();
-            for (var current = type.BaseType; current is not null && typeof(INotification).IsAssignableFrom(current); current = current.BaseType)
-                baseClasses.Add(current);
+            var handlerType = typeof(INotificationHandler<>).MakeGenericType(type);
+            var genericHandlers = Close(handlerType);
 
-            var interfaces = type.GetInterfaces().Where(i => typeof(INotification).IsAssignableFrom(i));
-
-            return new[] { type }
-                .Concat(baseClasses)
-                .Concat(interfaces)
-                .Select(t => (Notification: t, HandlerType: typeof(INotificationHandler<>).MakeGenericType(t)))
-                .Select(t => new NotificationTarget(
-                    t.HandlerType,
-                    typeof(IEnumerable<>).MakeGenericType(t.HandlerType),
-                    t.HandlerType.GetMethod("Handle", [t.Notification, typeof(CancellationToken)])!,
-                    Close(t.HandlerType)))
-                // The notification's own type is always looked up, so handlers registered by hand keep working.
-                .Where((target, index) => index == 0 || target.GenericHandlers.Length > 0 || _notificationHandlerTypes.Contains(target.HandlerType))
-                .ToArray();
-        });
-    }
-
-    /// <summary>Every handler of <paramref name="target"/>: the container's registrations, then the generic handlers.</summary>
-    internal IEnumerable<object> ResolveAll(IServiceProvider services, NotificationTarget target)
-    {
-        if (services.GetService(target.EnumerableType) is IEnumerable<object> registered)
-        {
-            foreach (var handler in registered)
-                yield return handler;
+            // The notification's own type is always looked up, so handlers registered by hand keep working.
+            if (type == notificationType || genericHandlers.Length > 0 || _notificationHandlerTypes.Contains(handlerType))
+                targets.Add((NotificationTarget)Activator.CreateInstance(typeof(NotificationTarget<>).MakeGenericType(type), [genericHandlers])!);
         }
 
-        foreach (var generic in target.GenericHandlers)
-            yield return generic.Factory(services, null);
+        return [.. targets];
     }
 
     private ClosedHandler[] Close(Type serviceType)
@@ -120,12 +110,12 @@ internal sealed class HandlerRegistry
         if (_genericHandlers.Count == 0)
             return [];
 
-        return _closedHandlers.GetOrAdd(serviceType, type => _genericHandlers
+        return _closedHandlers.GetOrAdd(serviceType, static (type, genericHandlers) => genericHandlers
             .Where(h => h.ServiceInterface.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
             .Select(h => TryClose(h, type))
             .OfType<Type>()
             .Select(t => new ClosedHandler(t, ActivatorUtilities.CreateFactory(t, Type.EmptyTypes)))
-            .ToArray());
+            .ToArray(), _genericHandlers);
     }
 
     private static Type? TryClose(GenericHandler handler, Type serviceType)
@@ -195,6 +185,4 @@ internal sealed class HandlerRegistry
     private sealed record GenericHandler(Type Implementation, Type ServiceInterface);
 
     internal sealed record ClosedHandler(Type Implementation, ObjectFactory Factory);
-
-    internal sealed record NotificationTarget(Type HandlerType, Type EnumerableType, MethodInfo HandleMethod, ClosedHandler[] GenericHandlers);
 }

@@ -395,7 +395,7 @@ Requests, notifications, handlers, pipeline behaviors, processors and exception 
 
 Then check the few [differences from MediatR](https://adiakys.github.io/AnyMediator/guide/migrating-from-mediatr#differences-to-check): mainly, two handlers for one request are a startup error, and a custom `INotificationPublisher` has a simpler signature.
 
-Comparing options? See [MediatR alternatives compared](https://adiakys.github.io/AnyMediator/guide/mediatr-alternatives): AnyMediator, MediatR, Mediator, LiteBus, Wolverine and FreeMediator side by side.
+Comparing options? See [MediatR alternatives compared](https://adiakys.github.io/AnyMediator/guide/mediatr-alternatives): AnyMediator, FreeMediator, MediatR, Mediator, LiteBus and Wolverine side by side.
 
 ## Upgrading from OpenMediatR
 

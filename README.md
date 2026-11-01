@@ -324,6 +324,18 @@ public class OrderService(IMediator mediator)
 
 You can inject `ISender`, `IPublisher`, or `IMediator` depending on what the consumer needs.
 
+## Tracing and Metrics
+
+AnyMediator emits OpenTelemetry spans for every `Send`, `CreateStream`, `Publish` and notification handler, and an `anymediator.operation.duration` histogram, through .NET's own `ActivitySource` and `Meter`. Nothing is recorded until you subscribe:
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(t => t.AddSource(AnyMediatorDiagnostics.ActivitySourceName))
+    .WithMetrics(m => m.AddMeter(AnyMediatorDiagnostics.MeterName));
+```
+
+Span names, attributes and the metric are described in the [tracing guide](https://adiakys.github.io/AnyMediator/guide/tracing).
+
 ## Configuration
 
 ```csharp

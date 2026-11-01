@@ -18,6 +18,7 @@ const guide = [
   { text: 'Exception handling', link: '/guide/exception-handling' },
   { text: 'Notification sinks', link: '/guide/notification-sinks' },
   { text: 'Configuration', link: '/guide/configuration' },
+  { text: 'Tracing and metrics', link: '/guide/tracing' },
   { text: 'Performance', link: '/guide/performance' },
 ]
 

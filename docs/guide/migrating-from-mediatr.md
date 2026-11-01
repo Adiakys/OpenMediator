@@ -12,7 +12,7 @@ AnyMediator keeps MediatR's type names, method names and configuration API. Most
 
 ## Why migrate
 
-From version 13, MediatR is distributed under a commercial license and needs a license key. AnyMediator is Apache-2.0: free for any use, commercial included, with no key and no revenue threshold.
+From version 13, MediatR is dual licensed: the copyleft Reciprocal Public License 1.5, or a commercial license with a license key. The commercial Community edition is free only below $5 million in annual revenue and $10 million in outside capital. AnyMediator is Apache-2.0: free for any use, commercial included, with no key and no threshold. See [MediatR alternatives compared](./mediatr-alternatives) for the details and the other options.
 
 ## The three changes
 
@@ -31,9 +31,11 @@ If a project referenced `MediatR.Contracts`, reference `AnyMediator.Abstractions
 - using MediatR;
 - using MediatR.Pipeline;
 + using AnyMediator;
+- using MediatR.NotificationPublishers;
++ using AnyMediator.NotificationPublishers;
 ```
 
-Everything lives in the single `AnyMediator` namespace, including the pre/post-processor and exception-handler interfaces that MediatR keeps in `MediatR.Pipeline`. Global usings work the same way.
+Everything lives in the `AnyMediator` namespace, including the pre/post-processor and exception-handler interfaces that MediatR keeps in `MediatR.Pipeline`. The only exception is the notification publishers (`TaskWhenAllPublisher`, `ForeachAwaitPublisher`), in `AnyMediator.NotificationPublishers` as in MediatR. Global usings work the same way.
 
 ### 3. Change the registration call
 
@@ -53,11 +55,12 @@ Everything lives in the single `AnyMediator` namespace, including the pre/post-p
 
 | Area | MediatR | AnyMediator |
 |------|---------|-------------|
-| License | Commercial license from v13 | Apache-2.0, free for any use |
-| `LicenseKey` | Required for commercial use | Does not exist: remove it |
+| License | RPL-1.5 or commercial from v13 | Apache-2.0, free for any use |
+| `LicenseKey` | Needed under the commercial license; without it, a warning is logged | Does not exist: remove it |
 | Two handlers for one request | The first one found is used | `AddAnyMediator` throws and names both classes |
 | `Publish` with several sinks failing | — | Every sink runs, then an `AggregateException` with every failure |
 | Notification delivery | In-process handlers | In-process handlers, plus any [notification sink](./notification-sinks) you add |
+| Custom `INotificationPublisher` | `Publish(IEnumerable<NotificationHandlerExecutor>, INotification, CancellationToken)` | `Publish(IEnumerable<Func<Task>>, CancellationToken)`: each delegate runs one handler |
 
 Interfaces, method shapes, `Send(object)`, `Publish(object)`, behavior constraints, handlers for base notification types, generic handlers and exceptions from `Publish` work as in MediatR.
 
@@ -67,10 +70,11 @@ If scanning finds two classes that handle the same request, `AddAnyMediator` sto
 
 ## Checklist
 
-1. Replace the package and the namespace.
+1. Replace the package and the namespaces.
 2. Replace `AddMediatR` with `AddAnyMediator` and remove `LicenseKey`.
-3. Start the application: fix any request reported as having two handlers.
-4. Run your tests.
+3. Adapt any custom `INotificationPublisher` to the delegate signature.
+4. Start the application: fix any request reported as having two handlers.
+5. Run your tests.
 
 ## Upgrading from AnyMediator 2.0
 

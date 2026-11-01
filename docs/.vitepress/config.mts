@@ -10,6 +10,7 @@ const description =
 const guide = [
   { text: 'Getting started', link: '/guide/getting-started' },
   { text: 'Migrating from MediatR', link: '/guide/migrating-from-mediatr' },
+  { text: 'MediatR alternatives', link: '/guide/mediatr-alternatives' },
   { text: 'Requests', link: '/guide/requests' },
   { text: 'Stream requests', link: '/guide/stream-requests' },
   { text: 'Notifications', link: '/guide/notifications' },

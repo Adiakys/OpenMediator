@@ -86,7 +86,10 @@ const converted = computed(() => {
 
     if (rules.namespace) {
       const using = /^(\s*)(global\s+)?using\s+(Open)?MediatR(\.\w+)*\s*;/.exec(line)
-      if (using) {
+      // The notification publishers keep a namespace of their own; everything else is in AnyMediator.
+      if (using && using[4] === '.NotificationPublishers') {
+        next = `${using[1]}${using[2] ?? ''}using AnyMediator.NotificationPublishers;`
+      } else if (using) {
         next = usingEmitted ? null : `${using[1]}${using[2] ?? ''}using AnyMediator;`
         usingEmitted = true
       }

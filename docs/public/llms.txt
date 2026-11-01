@@ -2,7 +2,7 @@
 
 > AnyMediator is a free, open-source (Apache-2.0) in-process mediator for .NET 8 and .NET 10, and an alternative to MediatR with a MediatR-compatible API. It supports requests, stream requests, notifications, pipeline behaviors, pre/post-processors, exception handlers/actions and pluggable notification sinks.
 
-Install with `dotnet add package AnyMediator`, register with `services.AddAnyMediator(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>())`, and use the single `AnyMediator` namespace. To migrate from MediatR: replace the package, replace `using MediatR;` with `using AnyMediator;`, replace `AddMediatR` with `AddAnyMediator`, and remove `LicenseKey`. Interfaces, method shapes, behavior constraints (`where TRequest : notnull`), `Send(object)`, `Publish(object)`, handlers for base notification types and generic handlers work as in MediatR.
+Install with `dotnet add package AnyMediator`, register with `services.AddAnyMediator(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>())`, and use the single `AnyMediator` namespace. To migrate from MediatR: replace the package, replace `using MediatR;` and `using MediatR.Pipeline;` with `using AnyMediator;` (and `MediatR.NotificationPublishers` with `AnyMediator.NotificationPublishers`), replace `AddMediatR` with `AddAnyMediator`, and remove `LicenseKey`. Interfaces, method shapes, behavior constraints (`where TRequest : notnull`), `Send(object)`, `Publish(object)`, handlers for base notification types and generic handlers work as in MediatR.
 
 AnyMediator was published as OpenMediatR up to version 1.5.0; to upgrade, replace the OpenMediatR package with AnyMediator, `using OpenMediatR;` with `using AnyMediator;` and `AddOpenMediatR` with `AddAnyMediator`. AnyMediator is not affiliated with MediatR or Lucky Penny Software.
 
@@ -12,6 +12,7 @@ Differences from MediatR: two handlers for the same request make `AddAnyMediator
 
 - [Getting started](https://adiakys.github.io/AnyMediator/guide/getting-started): install, register, send a request
 - [Migrating from MediatR](https://adiakys.github.io/AnyMediator/guide/migrating-from-mediatr): the three changes and every behavioral difference
+- [MediatR alternatives compared](https://adiakys.github.io/AnyMediator/guide/mediatr-alternatives): AnyMediator, MediatR, Mediator, LiteBus, Wolverine and FreeMediator side by side
 - [Requests](https://adiakys.github.io/AnyMediator/guide/requests): IRequest, IRequestHandler, ISender.Send
 - [Stream requests](https://adiakys.github.io/AnyMediator/guide/stream-requests): IStreamRequest, IAsyncEnumerable, CreateStream
 - [Notifications](https://adiakys.github.io/AnyMediator/guide/notifications): INotification, INotificationHandler, IPublisher, publisher strategies
